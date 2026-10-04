@@ -7,6 +7,8 @@ import {
   compactNumber,
   normalizeDataset,
   normalizeModel,
+  normalizePost,
+  isAiPost,
   groupModelCards,
   filterModelsByUpdated,
   parseArxivFeed,
@@ -213,5 +215,42 @@ describe('source normalizers', () => {
 
   it('rejects invalid arXiv XML', () => {
     expect(() => parseArxivFeed('<feed><entry>')).toThrow('invalid XML');
+  });
+});
+
+describe('Hacker News posts', () => {
+  const now = Date.parse('2026-10-04T00:00:00Z');
+  const hit = {
+    objectID: '123', title: 'Agents don\'t need memory', url: 'https://www.example.com/blog/agents',
+    points: 338, num_comments: 205, author: 'alice', created_at: '2026-10-03T12:00:00Z',
+  };
+
+  it('links to the discussion and keeps the article as a secondary link', () => {
+    const card = normalizePost(hit, now);
+    expect(card).toMatchObject({
+      id: 'hn:123', source: 'hackernews', section: 'posts', type: 'Post',
+      url: 'https://news.ycombinator.com/item?id=123', openLabel: 'Discuss',
+      metricValue: '338 pts · 205 comments',
+    });
+    expect(card.links).toEqual([{ id: 'article', label: 'Article', url: 'https://www.example.com/blog/agents', source: 'web' }]);
+    expect(card.tags).toEqual(['Hacker News', 'example.com']);
+    expect(card.details.hotScore).toBeGreaterThan(0);
+  });
+
+  it('handles text posts without an article URL and strips markup from text', () => {
+    const card = normalizePost({ ...hit, url: null, story_text: '<p>Ask HN: <i>how</i> do you eval agents?</p>' }, now);
+    expect(card.links).toEqual([]);
+    expect(card.summary).toBe('Ask HN: how do you eval agents?');
+  });
+
+  it('drops unsafe article URLs', () => {
+    expect(normalizePost({ ...hit, url: 'javascript:alert(1)' }, now).links).toEqual([]);
+  });
+
+  it('recognizes AI titles without matching unrelated words', () => {
+    expect(isAiPost(normalizePost(hit, now))).toBe(true);
+    expect(isAiPost(normalizePost({ ...hit, title: 'Show HN: Claude-powered CLI' }, now))).toBe(true);
+    expect(isAiPost(normalizePost({ ...hit, title: 'Why I stopped using Kubernetes', url: 'https://example.com' }, now))).toBe(false);
+    expect(isAiPost(normalizePost({ ...hit, title: 'Rain on the sidewalk' }, now))).toBe(false);
   });
 });

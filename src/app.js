@@ -104,6 +104,12 @@ const setState = (patch) => {
 
 const activeWorkbench = () => {
   const workbench = getWorkbench(state.selectedSection);
+  if (workbench.id === 'posts') {
+    // Hot reads the live front page and Trending the last 24 hours; only Top uses a range.
+    return state.filters.posts.rank === 'top'
+      ? workbench
+      : { ...workbench, controls: workbench.controls.filter(({ id }) => id !== 'time') };
+  }
   if (workbench.id !== 'papers') return workbench;
 
   const filters = state.filters.papers;

@@ -27,6 +27,7 @@
   --model: #a96119;
   --dataset: #1b7b5c;
   --paper: #943558;
+  --post: #a05a14;
   --danger: #a13939;
   --rail-width: 228px;
   --settings-drawer-width: 420px;
@@ -80,6 +81,7 @@
   --model: #e5a564;
   --dataset: #5bc49f;
   --paper: #e286aa;
+  --post: #f0a95a;
   --danger: #f08d8d;
 }
 
@@ -552,6 +554,7 @@ a:focus-visible {
 .badge.model { color: var(--model); }
 .badge.dataset { color: var(--dataset); }
 .badge.paper { color: var(--paper); }
+.badge.post { color: var(--post); }
 
 .metric {
   max-width: 58%;

@@ -182,9 +182,9 @@ describe('shared workbench renderer', () => {
     expect([...document.querySelectorAll('[data-filter="view"]')].map(({ textContent }) => textContent.trim()))
       .toEqual(['All', 'Favorites', 'Notes']);
     expect([...document.querySelector('[aria-label="Content type"]').options].map(({ value }) => value))
-      .toEqual(['all', 'Code', 'Model', 'Dataset', 'Paper']);
+      .toEqual(['all', 'Code', 'Model', 'Dataset', 'Paper', 'Post']);
     expect([...document.querySelector('[aria-label="Source"]').options].map(({ value }) => value))
-      .toEqual(['all', 'github', 'huggingface', 'arxiv']);
+      .toEqual(['all', 'github', 'huggingface', 'arxiv', 'hackernews']);
     expect([...document.querySelector('[aria-label="Sort"]').options].map(({ value }) => value))
       .toEqual(['updated', 'saved', 'title']);
   });

@@ -15,6 +15,7 @@ import {
   buildDatasetsRequest,
   buildGithubRequest,
   buildModelsUrl,
+  buildPostsUrl,
   matchesTopic,
   resolveGithubRequestUrl,
   resolveArxivRequestUrl,
@@ -28,8 +29,8 @@ const now = new Date('2026-08-28T12:00:00.000Z');
 describe('workbench query builders', () => {
   it('uses one six-hour TTL for every remote workbench', () => {
     expect(REMOTE_CACHE_TTL).toBe(6 * 60 * 60 * 1000);
-    expect(['today', 'code', 'models', 'datasets', 'papers']
-      .map((section) => WORKBENCHES[section].cacheTtl)).toEqual(Array(5).fill(REMOTE_CACHE_TTL));
+    expect(['today', 'code', 'models', 'datasets', 'papers', 'posts']
+      .map((section) => WORKBENCHES[section].cacheTtl)).toEqual(Array(6).fill(REMOTE_CACHE_TTL));
     expect(WORKBENCHES.library.cacheTtl).toBe(Infinity);
   });
 
@@ -42,7 +43,7 @@ describe('workbench query builders', () => {
     expect(second.code.language).toBe('all');
     expect(second.code).toEqual({ time: 'day', spokenLanguage: 'all', language: 'all' });
     expect(second.today).toEqual({});
-    expect(Object.keys(second)).toEqual(['today', 'code', 'models', 'datasets', 'papers', 'library']);
+    expect(Object.keys(second)).toEqual(['today', 'code', 'models', 'datasets', 'papers', 'posts', 'library']);
   });
 
   it('drops the removed legacy Today topic filter', () => {
@@ -311,5 +312,40 @@ describe('source URL validation', () => {
     expect(validateSourceUrl('https://github.example.com/openai/evals', 'github')).toBe('');
     expect(validateSourceUrl('not a URL', 'github')).toBe('');
     expect(validateSourceUrl('https://github.com/openai/evals', 'unknown')).toBe('');
+  });
+});
+
+describe('Hacker News posts', () => {
+  const now = new Date('2026-10-04T00:00:00Z');
+  const seconds = Math.floor(now.getTime() / 1000);
+
+  it('queries the front page for Hot without a time window', () => {
+    const url = new URL(buildPostsUrl({ rank: 'hot', time: 'week', topic: 'all' }, now));
+    expect(url.origin + url.pathname).toBe('https://hn.algolia.com/api/v1/search');
+    expect(url.searchParams.get('tags')).toBe('story,front_page');
+    expect(url.searchParams.get('numericFilters')).toBeNull();
+    expect(url.searchParams.get('query')).toContain('LLM');
+  });
+
+  it('limits Trending to the last day and Top to the selected range', () => {
+    const trending = new URL(buildPostsUrl({ rank: 'trending', time: 'month', topic: 'all' }, now));
+    expect(trending.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 86400},points>=5`);
+    const top = new URL(buildPostsUrl({ rank: 'top', time: 'month', topic: 'all' }, now));
+    expect(top.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 30 * 86400},points>=20`);
+  });
+
+  it('narrows the query with the AI topic and quotes phrases', () => {
+    const url = new URL(buildPostsUrl({ rank: 'top', time: 'week', topic: 'llms' }, now));
+    expect(url.searchParams.get('query')).toBe('llm "language model" transformer');
+    expect(url.searchParams.get('optionalWords')).toBe(url.searchParams.get('query'));
+  });
+
+  it('allows outbound article links on any https host but nothing else', () => {
+    expect(validateSourceUrl('https://example.com/post', 'web')).toBe('https://example.com/post');
+    expect(validateSourceUrl('http://example.com/post', 'web')).toBe('');
+    expect(validateSourceUrl('https://user:pw@example.com/', 'web')).toBe('');
+    expect(validateSourceUrl('https://news.ycombinator.com/item?id=1', 'hackernews')).toBe('https://news.ycombinator.com/item?id=1');
+    expect(validateSourceUrl('https://example.com/', 'hackernews')).toBe('');
+    expect(validateSourceUrl('https://example.com/', 'constructor')).toBe('');
   });
 });

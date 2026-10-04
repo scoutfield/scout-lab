@@ -362,6 +362,27 @@ export const WORKBENCHES = {
     ],
     cacheTtl: REMOTE_CACHE_TTL,
   },
+  posts: {
+    id: 'posts',
+    label: 'Posts',
+    title: 'Posts',
+    subtitle: 'AI discussions the Hacker News community is voting up right now.',
+    defaults: { rank: 'hot', time: 'week', topic: 'all' },
+    controls: [
+      control('rank', 'Sort', [
+        option('hot', 'Hot'),
+        option('trending', 'Trending'),
+        option('top', 'Top'),
+      ], 'segment'),
+      control('time', 'Time range', [
+        option('day', 'Today'),
+        option('week', 'This week'),
+        option('month', 'This month'),
+      ]),
+      control('topic', 'AI topic', TOPICS),
+    ],
+    cacheTtl: REMOTE_CACHE_TTL,
+  },
   library: {
     id: 'library',
     label: 'Library',
@@ -374,11 +395,11 @@ export const WORKBENCHES = {
       ], 'segment'),
       control('type', 'Content type', [
         option('all', 'All content'), option('Code', 'Code'), option('Model', 'Models'),
-        option('Dataset', 'Datasets'), option('Paper', 'Papers'),
+        option('Dataset', 'Datasets'), option('Paper', 'Papers'), option('Post', 'Posts'),
       ]),
       control('source', 'Source', [
         option('all', 'All sources'), option('github', 'GitHub'), option('huggingface', 'Hugging Face'),
-        option('arxiv', 'arXiv'),
+        option('arxiv', 'arXiv'), option('hackernews', 'Hacker News'),
       ]),
       control('sort', 'Sort', [
         option('updated', 'Recently updated'), option('saved', 'Recently saved'), option('title', 'Title'),

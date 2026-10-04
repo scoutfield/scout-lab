@@ -4,6 +4,7 @@ import {
   buildCommunityPapersUrl,
   buildDatasetsRequest,
   buildGithubRequest,
+  buildPostsUrl,
   buildModelsUrl,
   matchesTopic,
   resolveGithubRequestUrl,
@@ -16,6 +17,8 @@ import {
   normalizeDataset,
   normalizeModel,
   filterModelsByUpdated,
+  isAiPost,
+  normalizePost,
   groupModelCards,
   parseArxivFeed,
   parseGithubTrending,
@@ -52,6 +55,14 @@ const fallbackCards = {
     metrics: [], links: [], secondary: { left: 'Raw research', right: 'Live feed unavailable' }, details: {},
   }],
 };
+
+fallbackCards.posts = [{
+  id: 'fallback:hn:ai', source: 'hackernews', section: 'posts', type: 'Post',
+  title: 'AI posts on Hacker News', url: 'https://news.ycombinator.com/',
+  summary: 'Browse the Hacker News front page for AI discussions while the live feed is unavailable.',
+  tags: ['AI', 'Hacker News'], metricLabel: 'Source', metricValue: 'Hacker News',
+  metrics: [], links: [], secondary: { left: 'Community posts', right: 'Live feed unavailable' }, details: {},
+}];
 
 const fetchWithTimeout = async (url, options = {}) => {
   const controller = new AbortController();
@@ -127,6 +138,23 @@ const fetchDatasets = async (filters) => {
   return { cards, status: { label: 'Hugging Face datasets', stale: false } };
 };
 
+const POST_SORT = {
+  hot: (card) => card.details.hotScore,
+  trending: (card) => card.details.hotScore,
+  top: (card) => card.details.points,
+};
+
+const fetchPosts = async (filters) => {
+  const data = await fetchJson(buildPostsUrl(filters));
+  if (!Array.isArray(data?.hits)) throw new Error('Hacker News search returned an unexpected response');
+  const sortKey = POST_SORT[filters.rank] || POST_SORT.hot;
+  const cards = data.hits.filter((hit) => hit.title && hit.objectID).map((hit) => normalizePost(hit))
+    .filter((card) => isAiPost(card) && matchesTopic(card, filters.topic))
+    .sort((left, right) => sortKey(right) - sortKey(left))
+    .slice(0, 24);
+  return { cards, status: { label: 'Hacker News', stale: false } };
+};
+
 const fetchPapers = async (filters) => {
   if (filters.source === 'arxiv') {
     const request = buildArxivRequest(filters);
@@ -153,6 +181,7 @@ const liveFetcher = (section, filters) => {
   if (section === 'models') return fetchModels(filters);
   if (section === 'datasets') return fetchDatasets(filters);
   if (section === 'papers') return fetchPapers(filters);
+  if (section === 'posts') return fetchPosts(filters);
   throw new Error(`Unknown workbench: ${section}`);
 };
 

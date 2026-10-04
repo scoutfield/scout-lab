@@ -16,7 +16,7 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 
 ## Shell And Navigation
 
-- [ ] Today, Code, Models, Datasets, Papers, and Library tabs open the correct workbench; Learn is absent.
+- [ ] Today, Code, Models, Datasets, Papers, Posts, and Library tabs open the correct workbench; Learn is absent.
 - [ ] Today shows Search and Refresh without Topic, Reset filters, or an empty filter bar.
 - [ ] The active tab, page title, source label, filters, and grid update together.
 - [ ] Search filters the current cards and clearing search restores them.
@@ -50,6 +50,7 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 - [ ] Community Papers Trending and Recent both remain inside the selected day/week/month cohort.
 - [ ] Papers source mode, category, time, sort, topic, and search controls work.
 - [ ] Papers switch correctly between community papers and raw arXiv entries.
+- [ ] Posts Hot, Trending, and Top load Hacker News AI stories; the time range appears only for Top; Discuss opens the HN thread and Article opens the original link.
 - [ ] Raw arXiv loads in the local preview without a CORS error, and PDF/Code links resolve to their displayed paper.
 
 ## Card Actions And Links
@@ -102,7 +103,7 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 
 - [ ] Connect archive folder requires an explicit user gesture.
 - [ ] Save today writes readable Markdown with source-specific fields to the selected folder.
-- [ ] A cold new-tab startup prepares Today, Code, Models, Datasets, and Papers without duplicate overlapping source requests.
+- [ ] A cold new-tab startup prepares Today, Code, Models, Datasets, Papers, and Posts without duplicate overlapping source requests.
 - [ ] Opening warmed tabs or another new tab within six hours reuses exact matching cache entries.
 - [ ] Expired entries and newly parameterized filter queries fetch fresh source data.
 - [ ] Manual Refresh bypasses the active query cache without invalidating unrelated cached queries.

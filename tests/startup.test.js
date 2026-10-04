@@ -15,7 +15,7 @@ describe('startup cache warming', () => {
       userState: { 'github:one': { hidden: true } },
     }, fetcher);
 
-    expect(fetcher).toHaveBeenCalledTimes(5);
+    expect(fetcher).toHaveBeenCalledTimes(6);
     expect(fetcher.mock.calls.map(([section]) => section)).toEqual(STARTUP_SECTIONS);
     for (const [section, sectionFilters, options] of fetcher.mock.calls) {
       expect(sectionFilters).toEqual(filters[section]);
@@ -27,7 +27,7 @@ describe('startup cache warming', () => {
     for (const section of STARTUP_SECTIONS.filter((id) => id !== 'code')) {
       pending.get(section)({ cards: [], status: {} });
     }
-    await expect(warmup.settled).resolves.toHaveLength(5);
+    await expect(warmup.settled).resolves.toHaveLength(6);
   });
 
   it('contains a failed background workbench with all-settled completion', async () => {
@@ -42,6 +42,6 @@ describe('startup cache warming', () => {
       section: 'datasets',
       status: 'rejected',
     });
-    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(4);
+    expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(5);
   });
 });
