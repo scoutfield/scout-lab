@@ -101,7 +101,8 @@
   font-weight: 760;
 }
 
-.settings-field select {
+.settings-field select,
+.settings-field .settings-text {
   width: 100%;
   height: 36px;
   border: 1px solid var(--line);
@@ -321,6 +322,7 @@
 }
 
 :root[data-text-size="large"] .settings-field select,
+:root[data-text-size="large"] .settings-field .settings-text,
 :root[data-text-size="large"] .settings-segment button,
 :root[data-text-size="large"] .today-lane > span,
 :root[data-text-size="large"] .default-row strong,

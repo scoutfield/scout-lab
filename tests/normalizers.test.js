@@ -8,6 +8,8 @@ import {
   normalizeDataset,
   normalizeModel,
   normalizePost,
+  normalizeRedditPost,
+  isUsableRedditPost,
   isAiPost,
   groupModelCards,
   filterModelsByUpdated,
@@ -230,7 +232,7 @@ describe('Hacker News posts', () => {
     expect(card).toMatchObject({
       id: 'hn:123', source: 'hackernews', section: 'posts', type: 'Post',
       url: 'https://news.ycombinator.com/item?id=123', openLabel: 'Discuss',
-      metricValue: '338 pts · 205 comments',
+      metricValue: '338 pts',
     });
     expect(card.links).toEqual([{ id: 'article', label: 'Article', url: 'https://www.example.com/blog/agents', source: 'web' }]);
     expect(card.tags).toEqual(['Hacker News', 'example.com']);
@@ -252,5 +254,49 @@ describe('Hacker News posts', () => {
     expect(isAiPost(normalizePost({ ...hit, title: 'Show HN: Claude-powered CLI' }, now))).toBe(true);
     expect(isAiPost(normalizePost({ ...hit, title: 'Why I stopped using Kubernetes', url: 'https://example.com' }, now))).toBe(false);
     expect(isAiPost(normalizePost({ ...hit, title: 'Rain on the sidewalk' }, now))).toBe(false);
+  });
+});
+
+describe('Reddit posts', () => {
+  const post = {
+    name: 't3_abc', title: 'Qwen release thread', permalink: '/r/LocalLLaMA/comments/abc/qwen_release/',
+    url: 'https://huggingface.co/Qwen/x', domain: 'huggingface.co', is_self: false, score: 1200,
+    num_comments: 340, subreddit: 'LocalLLaMA', author: 'ann', created_utc: 1790000000,
+    link_flair_text: 'New Model',
+  };
+
+  it('opens the Reddit thread and keeps an external article as a secondary link', () => {
+    const card = normalizeRedditPost(post);
+    expect(card).toMatchObject({
+      id: 'reddit:t3_abc', source: 'reddit', section: 'posts', type: 'Post', openLabel: 'Discuss',
+      url: 'https://www.reddit.com/r/LocalLLaMA/comments/abc/qwen_release',
+      metricValue: '1.2k pts',
+      facts: [{ value: '340', label: 'comments' }],
+    });
+    expect(card.links).toEqual([{ id: 'article', label: 'Article', url: 'https://huggingface.co/Qwen/x', source: 'web' }]);
+    expect(card.tags).toEqual(['r/LocalLLaMA', 'New Model', 'huggingface.co']);
+    expect(card.secondary.left).toBe('r/LocalLLaMA · u/ann');
+  });
+
+  it('treats self posts and Reddit-hosted links as discussion only', () => {
+    const self = normalizeRedditPost({ ...post, is_self: true, domain: 'self.LocalLLaMA', url: 'https://www.reddit.com/r/x', selftext: 'Plain **text** body' });
+    expect(self.links).toEqual([]);
+    expect(self.summary).toBe('Plain **text** body');
+    expect(normalizeRedditPost({ ...post, url: 'https://i.redd.it/pic.png' }).links).toEqual([]);
+    expect(normalizeRedditPost({ ...post, url: 'https://www.reddit.com/gallery/abc' }).links).toEqual([]);
+  });
+
+  it('rejects unsafe article URLs and drops a permalink that is not a path', () => {
+    expect(normalizeRedditPost({ ...post, url: 'javascript:alert(1)' }).links).toEqual([]);
+    expect(normalizeRedditPost({ ...post, permalink: 'https://evil.example/x' }).url).toBe('https://www.reddit.com');
+  });
+
+  it('filters pinned, removed, adult, and incomplete posts', () => {
+    expect(isUsableRedditPost(post)).toBe(true);
+    expect(isUsableRedditPost({ ...post, stickied: true })).toBe(false);
+    expect(isUsableRedditPost({ ...post, over_18: true })).toBe(false);
+    expect(isUsableRedditPost({ ...post, removed_by_category: 'moderator' })).toBe(false);
+    expect(isUsableRedditPost({ ...post, title: '' })).toBe(false);
+    expect(isUsableRedditPost(null)).toBe(false);
   });
 });

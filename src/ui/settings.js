@@ -139,6 +139,16 @@ export const renderSettingsDrawer = ({
             <p class="settings-help">Choose 1-12 cards total, with up to 4 from each source.</p>
           </section>
 
+          <section class="settings-section" aria-labelledby="reddit-heading">
+            <h3 id="reddit-heading">Reddit communities</h3>
+            <label class="settings-field">
+              <span class="settings-label">Subreddits covered by Posts</span>
+              <input type="text" class="settings-text" data-setting-text="redditCommunities" spellcheck="false" autocomplete="off"
+                value="${escapeHtml(preferences.redditCommunities.join(', '))}" aria-describedby="reddit-help">
+            </label>
+            <p class="settings-help" id="reddit-help">Separate names with commas, up to 20. The Posts tab reads them together as All my subreddits, straight from Reddit in your browser. Leave it empty to restore the defaults.</p>
+          </section>
+
           <section class="settings-section" aria-labelledby="defaults-heading">
             <h3 id="defaults-heading">Workbench defaults</h3>
             <div class="default-list">

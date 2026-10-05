@@ -57,6 +57,7 @@ const SOURCE_HOSTS = {
   huggingface: new Set(['huggingface.co']),
   arxiv: new Set(['arxiv.org', 'export.arxiv.org']),
   hackernews: new Set(['news.ycombinator.com']),
+  reddit: new Set(['www.reddit.com', 'reddit.com', 'old.reddit.com']),
   // Outbound article links: any https host, never credentials.
   web: null,
 };
@@ -227,6 +228,18 @@ export const buildPostsUrl = (filters, now = new Date()) => {
   }
   if (numeric.length) params.set('numericFilters', numeric.join(','));
   return `https://hn.algolia.com/api/v1/search?${params}`;
+};
+
+const REDDIT_SORTS = new Set(['hot', 'rising', 'top']);
+
+export const buildRedditPostsUrl = (filters, communities = []) => {
+  const names = filters.community && filters.community !== 'all' ? [filters.community] : communities;
+  const safe = names.filter((name) => /^[A-Za-z0-9_]{2,21}$/.test(name));
+  if (!safe.length) throw new Error('No subreddits are configured');
+  const sort = REDDIT_SORTS.has(filters.rank) ? filters.rank : 'hot';
+  const params = new URLSearchParams({ limit: '50', raw_json: '1' });
+  if (sort === 'top') params.set('t', ['day', 'week', 'month'].includes(filters.time) ? filters.time : 'week');
+  return `https://www.reddit.com/r/${safe.join('+')}/${sort}.json?${params}`;
 };
 
 const arxivCategory = (topic) => {

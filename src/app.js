@@ -48,7 +48,13 @@ import {
   updateSearchResults,
 } from './ui/render.js?v=1.0.5';
 import { renderSettingsDrawer } from './ui/settings.js?v=1.0.5';
-import { getWorkbench, SECTION_ORDER, TOPICS, WORKBENCHES } from './workbenches.js';
+import {
+  getWorkbench,
+  normalizeRedditCommunities,
+  SECTION_ORDER,
+  TOPICS,
+  WORKBENCHES,
+} from './workbenches.js';
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 const app = document.querySelector('#app');
@@ -105,10 +111,17 @@ const setState = (patch) => {
 const activeWorkbench = () => {
   const workbench = getWorkbench(state.selectedSection);
   if (workbench.id === 'posts') {
-    // Hot reads the live front page and Trending the last 24 hours; only Top uses a range.
-    return state.filters.posts.rank === 'top'
-      ? workbench
-      : { ...workbench, controls: workbench.controls.filter(({ id }) => id !== 'time') };
+    const { source, rank } = state.filters.posts;
+    const reddit = source !== 'hackernews';
+    const sorts = reddit ? ['hot', 'rising', 'top'] : ['hot', 'trending', 'top'];
+    return {
+      ...workbench,
+      controls: workbench.controls
+        .filter(({ id }) => (id !== 'time' || rank === 'top') && (id !== 'community' || reddit))
+        .map((control) => (control.id === 'rank'
+          ? { ...control, options: control.options.filter(({ value }) => sorts.includes(value)) }
+          : control)),
+    };
   }
   if (workbench.id !== 'papers') return workbench;
 
@@ -337,6 +350,7 @@ const load = async ({ force = false, clear = false, resultPromise = null } = {})
     force,
     allFilters: state.filters,
     todayMix: state.settings.preferences.todayMix,
+    redditCommunities: state.settings.preferences.redditCommunities,
     userState: state.userState,
   }));
   if (state.requestId !== requestId) return;
@@ -356,6 +370,9 @@ const updateFilters = async (patch) => {
   const current = state.filters[section];
   let nextPatch = { ...patch };
 
+  if (section === 'posts' && patch.source && patch.source !== current.source) {
+    nextPatch = { ...nextPatch, rank: 'hot' };
+  }
   if (section === 'papers' && patch.source === 'arxiv') {
     nextPatch = { ...nextPatch, sort: 'newest' };
   }
@@ -434,6 +451,7 @@ const savePreference = async (patch, focusSelector) => {
   setState({ settings: nextSettings, filters: nextSettings.filters, settingsError: '', settingsNotice: 'Saved.' });
   render();
   if (state.selectedSection === 'today' && patch.todayMix) await load({ force: true, clear: true });
+  if (state.selectedSection === 'posts' && patch.redditCommunities) await load({ clear: true });
   focusAfterRender(focusSelector);
 };
 
@@ -703,6 +721,15 @@ const onChange = async (event) => {
     return;
   }
 
+  if (event.target.matches('input[data-setting-text]')) {
+    const setting = event.target.dataset.settingText;
+    await savePreference(
+      { [setting]: normalizeRedditCommunities(event.target.value) },
+      `input[data-setting-text="${setting}"]`,
+    );
+    return;
+  }
+
   if (event.target.matches('[data-import-file]')) {
     await reviewImportFile(event.target.files?.[0]);
     return;
@@ -761,6 +788,7 @@ const boot = async () => {
   const warmup = createStartupWarmup({
     filters: state.filters,
     todayMix: state.settings.preferences.todayMix,
+    redditCommunities: state.settings.preferences.redditCommunities,
     userState: state.userState,
   });
 

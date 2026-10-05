@@ -444,8 +444,9 @@ export const normalizePost = (hit, now = Date.now()) => {
 
   return {
     ...card,
-    metricLabel: 'Hacker News points and comments',
-    metricValue: `${compactNumber(points)} pts · ${compactNumber(comments)} comments`,
+    metricLabel: 'Hacker News points',
+    metricValue: `${compactNumber(points)} pts`,
+    facts: [{ value: compactNumber(comments), label: 'comments' }],
     metrics: [
       metric('points', 'Points', points, 'Hacker News points'),
       metric('comments', 'Comments', comments, 'Hacker News comments'),
@@ -461,3 +462,54 @@ export const normalizePost = (hit, now = Date.now()) => {
     },
   };
 };
+
+export const normalizeRedditPost = (data) => {
+  const id = `${data.name || data.id || ''}`;
+  const score = Number(data.score) || 0;
+  const comments = Number(data.num_comments) || 0;
+  const permalink = `${data.permalink || ''}`.startsWith('/') ? data.permalink : '';
+  const isSelf = data.is_self === true || /^self\./.test(data.domain || '');
+  const articleUrl = isSelf ? '' : validateSourceUrl(data.url_overridden_by_dest || data.url, 'web');
+  const articleHost = hostOf(articleUrl);
+  const external = articleUrl && !/(^|\.)(reddit\.com|redd\.it|redditmedia\.com)$/.test(articleHost);
+  const subreddit = cleanText(data.subreddit);
+  const flair = cleanText(data.link_flair_text);
+  const created = Number(data.created_utc) ? new Date(Number(data.created_utc) * 1000).toISOString() : '';
+  const card = baseCard({
+    id: `reddit:${id}`,
+    source: 'reddit',
+    section: 'posts',
+    type: 'Post',
+    title: data.title,
+    url: `https://www.reddit.com${permalink}`,
+    summary: readableDescription(data.selftext || '') || (external
+      ? `Shared from ${articleHost}.`
+      : 'Discussion thread on Reddit.'),
+    tags: [subreddit ? `r/${subreddit}` : 'Reddit', flair, external ? articleHost : ''].filter(Boolean),
+    owner: data.author || '',
+    publishedAt: created,
+  });
+
+  return {
+    ...card,
+    metricLabel: 'Reddit score',
+    metricValue: `${compactNumber(score)} pts`,
+    facts: [{ value: compactNumber(comments), label: 'comments' }],
+    metrics: [
+      metric('score', 'Score', score, 'Reddit score (upvotes minus downvotes)'),
+      metric('comments', 'Comments', comments, 'Reddit comments'),
+    ],
+    openLabel: 'Discuss',
+    links: external ? [{ id: 'article', label: 'Article', url: articleUrl, source: 'web' }] : [],
+    secondary: {
+      left: `${subreddit ? `r/${subreddit}` : 'Reddit'}${data.author ? ` · u/${data.author}` : ''}`,
+      right: `Posted ${formatDate(created)}`,
+    },
+    details: { score, comments, subreddit, flair, domain: external ? articleHost : '', publishedAt: created },
+  };
+};
+
+// Drops pinned, removed, and adult posts so a daily bench stays on topic and safe to open at work.
+export const isUsableRedditPost = (data) => Boolean(
+  data && data.title && data.permalink && !data.stickied && !data.over_18 && !data.removed_by_category,
+);

@@ -6,6 +6,7 @@ import {
   buildGithubRequest,
   buildModelsUrl,
   buildPostsUrl,
+  buildRedditPostsUrl,
 } from '../src/services/query.js';
 import { parseGithubTrending, parseHuggingFaceDatasetsPage } from '../src/services/normalizers.js';
 import { createDefaultFilters } from '../src/workbenches.js';
@@ -151,6 +152,21 @@ const posts = await record('Hacker News Algolia contract', async () => {
     results.push({ rank, entries: hits.length });
   }
   return { sorts: results };
+});
+
+await record('Reddit public JSON contract', async () => {
+  const response = await fetch(buildRedditPostsUrl({ ...defaults.posts, rank: 'hot' }, ['LocalLLaMA', 'MachineLearning']), {
+    credentials: 'omit', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT),
+  });
+  // Reddit blocks many datacenter and CI addresses; that says nothing about a user's browser.
+  if ([403, 429].includes(response.status)) return { skipped: `blocked from this network (${response.status})` };
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  const children = (await response.json())?.data?.children;
+  const first = children?.[0]?.data;
+  if (!Array.isArray(children) || !first?.permalink || !first.title || !Number.isFinite(first.score)) {
+    throw new Error('Missing listing children, title, permalink, or score');
+  }
+  return { entries: children.length };
 });
 
 const linkGroups = [trending, trendingEnglish, trendingChinese, models, datasets, papers, arxiv].filter(Boolean);

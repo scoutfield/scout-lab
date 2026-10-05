@@ -5,6 +5,7 @@ import {
   buildDatasetsRequest,
   buildGithubRequest,
   buildPostsUrl,
+  buildRedditPostsUrl,
   buildModelsUrl,
   matchesTopic,
   resolveGithubRequestUrl,
@@ -18,7 +19,9 @@ import {
   normalizeModel,
   filterModelsByUpdated,
   isAiPost,
+  isUsableRedditPost,
   normalizePost,
+  normalizeRedditPost,
   groupModelCards,
   parseArxivFeed,
   parseGithubTrending,
@@ -63,6 +66,18 @@ fallbackCards.posts = [{
   tags: ['AI', 'Hacker News'], metricLabel: 'Source', metricValue: 'Hacker News',
   metrics: [], links: [], secondary: { left: 'Community posts', right: 'Live feed unavailable' }, details: {},
 }];
+
+const redditFallbackCards = [{
+  id: 'fallback:reddit:ai', source: 'reddit', section: 'posts', type: 'Post',
+  title: 'AI communities on Reddit', url: 'https://www.reddit.com/r/LocalLLaMA/',
+  summary: 'Open r/LocalLLaMA while the live Reddit feed is unavailable. Reddit may be rate limiting or requiring a sign-in.',
+  tags: ['AI', 'Reddit'], metricLabel: 'Source', metricValue: 'Reddit',
+  metrics: [], links: [], secondary: { left: 'Community posts', right: 'Live feed unavailable' }, details: {},
+}];
+
+const fallbackFor = (section, filters) => (
+  section === 'posts' && filters.source !== 'hackernews' ? redditFallbackCards : fallbackCards[section] || []
+);
 
 const fetchWithTimeout = async (url, options = {}) => {
   const controller = new AbortController();
@@ -144,7 +159,18 @@ const POST_SORT = {
   top: (card) => card.details.points,
 };
 
-const fetchPosts = async (filters) => {
+const fetchRedditPosts = async (filters, options) => {
+  const data = await fetchJson(buildRedditPostsUrl(filters, options.redditCommunities), { credentials: 'omit' });
+  if (!Array.isArray(data?.data?.children)) throw new Error('Reddit returned an unexpected response');
+  const cards = data.data.children.map((child) => child?.data).filter(isUsableRedditPost)
+    .map(normalizeRedditPost)
+    .filter((card) => card.url && matchesTopic(card, filters.topic))
+    .slice(0, 24);
+  return { cards, status: { label: 'Reddit', stale: false } };
+};
+
+const fetchPosts = async (filters, options = {}) => {
+  if (filters.source !== 'hackernews') return fetchRedditPosts(filters, options);
   const data = await fetchJson(buildPostsUrl(filters));
   if (!Array.isArray(data?.hits)) throw new Error('Hacker News search returned an unexpected response');
   const sortKey = POST_SORT[filters.rank] || POST_SORT.hot;
@@ -176,12 +202,12 @@ const fetchPapers = async (filters) => {
   return { cards, status: { label: 'Hugging Face Daily Papers', stale: false } };
 };
 
-const liveFetcher = (section, filters) => {
+const liveFetcher = (section, filters, options) => {
   if (section === 'code') return fetchCode(filters);
   if (section === 'models') return fetchModels(filters);
   if (section === 'datasets') return fetchDatasets(filters);
   if (section === 'papers') return fetchPapers(filters);
-  if (section === 'posts') return fetchPosts(filters);
+  if (section === 'posts') return fetchPosts(filters, options);
   throw new Error(`Unknown workbench: ${section}`);
 };
 
@@ -269,6 +295,7 @@ export const fetchSection = async (section, filters, options = {}) => {
   const normalizedOptions = {
     force: false,
     todayMix: { code: 2, models: 1, datasets: 1, papers: 2 },
+    redditCommunities: [],
     userState: {},
     ...options,
   };
@@ -280,6 +307,8 @@ export const fetchSection = async (section, filters, options = {}) => {
     filters,
     ...(['code', 'today'].includes(section) ? { sourceRevision: GITHUB_TRENDING_SOURCE_REVISION } : {}),
     ...(['models', 'today'].includes(section) ? { descriptionRevision: DESCRIPTION_REVISION } : {}),
+    ...(section === 'posts' && filters.source !== 'hackernews'
+      ? { communities: normalizedOptions.redditCommunities } : {}),
     ...(section === 'today' ? { todayMix: normalizedOptions.todayMix, hiddenIds } : {}),
   };
   const key = stableSerialize(query);
@@ -324,7 +353,7 @@ export const fetchSection = async (section, filters, options = {}) => {
         };
       }
       return {
-        cards: fallbackCards[section] || [],
+        cards: fallbackFor(section, filters),
         status: { label: `${getWorkbench(section).label} fallback`, stale: true, message: error.message },
         cached: false,
         error: error.message,

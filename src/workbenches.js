@@ -173,6 +173,25 @@ export const CODE_LANGUAGE_OPTIONS = [
   option('java', 'Java'),
 ];
 
+export const REDDIT_COMMUNITIES = [
+  'LocalLLaMA', 'MachineLearning', 'artificial', 'OpenAI', 'ClaudeAI', 'LLMDevs', 'StableDiffusion',
+];
+
+const SUBREDDIT_NAME = /^[A-Za-z0-9_]{2,21}$/;
+const MAX_REDDIT_COMMUNITIES = 20;
+
+// Accepts a list or free text ("r/LocalLLaMA, MachineLearning"); falls back to the presets when empty.
+export const normalizeRedditCommunities = (value) => {
+  const names = (Array.isArray(value) ? value : `${value || ''}`.split(/[\s,+]+/))
+    .filter((name) => typeof name === 'string')
+    .map((name) => `${name}`.trim().replace(/^\/?r\//i, ''))
+    .filter((name) => SUBREDDIT_NAME.test(name));
+  const seen = new Set();
+  const unique = names.filter((name) => !seen.has(name.toLowerCase()) && seen.add(name.toLowerCase()))
+    .slice(0, MAX_REDDIT_COMMUNITIES);
+  return unique.length ? unique : [...REDDIT_COMMUNITIES];
+};
+
 export const WORKBENCHES = {
   today: {
     id: 'today',
@@ -366,11 +385,17 @@ export const WORKBENCHES = {
     id: 'posts',
     label: 'Posts',
     title: 'Posts',
-    subtitle: 'AI discussions the Hacker News community is voting up right now.',
-    defaults: { rank: 'hot', time: 'week', topic: 'all' },
+    subtitle: 'AI discussions from Reddit and Hacker News, ranked by the community.',
+    defaults: { source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' },
     controls: [
+      control('source', 'Source', [
+        option('reddit', 'Reddit'),
+        option('hackernews', 'Hacker News'),
+      ], 'segment'),
+      // Reddit offers Hot / Rising / Top and Hacker News Hot / Trending / Top; app.js narrows by source.
       control('rank', 'Sort', [
         option('hot', 'Hot'),
+        option('rising', 'Rising'),
         option('trending', 'Trending'),
         option('top', 'Top'),
       ], 'segment'),
@@ -378,6 +403,10 @@ export const WORKBENCHES = {
         option('day', 'Today'),
         option('week', 'This week'),
         option('month', 'This month'),
+      ]),
+      control('community', 'Subreddit', [
+        option('all', 'All my subreddits'),
+        ...REDDIT_COMMUNITIES.map((name) => option(name, `r/${name}`)),
       ]),
       control('topic', 'AI topic', TOPICS),
     ],
@@ -399,7 +428,7 @@ export const WORKBENCHES = {
       ]),
       control('source', 'Source', [
         option('all', 'All sources'), option('github', 'GitHub'), option('huggingface', 'Hugging Face'),
-        option('arxiv', 'arXiv'), option('hackernews', 'Hacker News'),
+        option('arxiv', 'arXiv'), option('hackernews', 'Hacker News'), option('reddit', 'Reddit'),
       ]),
       control('sort', 'Sort', [
         option('updated', 'Recently updated'), option('saved', 'Recently saved'), option('title', 'Title'),

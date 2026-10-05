@@ -21,7 +21,7 @@ Scout Lab requests public display data from:
 - GitHub for Trending repositories
 - Hugging Face for models, datasets, and Daily Papers
 - arXiv for research-paper metadata
-- Hacker News (via the Algolia search API) for AI community posts
+- Hacker News (via the Algolia search API) and Reddit for AI community posts
 
 Requests contain only the source filters needed to retrieve the selected public results. Scout Lab does not send favorites, comments, notes, settings, backup content, or archive content to these sources.
 

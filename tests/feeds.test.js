@@ -329,3 +329,52 @@ describe('feed integration', () => {
     expect(result.shortfalls).toEqual({ code: 1, models: 1 });
   });
 });
+
+describe('Reddit posts feed', () => {
+  const listing = (children) => ({ data: { children: children.map((data) => ({ kind: 't3', data })) } });
+  const redditPost = (id, extra = {}) => ({
+    name: `t3_${id}`, title: `Post ${id}`, permalink: `/r/LocalLLaMA/comments/${id}/p/`, score: 10,
+    num_comments: 2, subreddit: 'LocalLLaMA', is_self: true, ...extra,
+  });
+
+  it('requests the configured subreddits without credentials and skips unusable posts', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response(listing([
+      redditPost('a'), redditPost('b', { stickied: true }), redditPost('c', { over_18: true }),
+    ])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchSection('posts', createDefaultFilters().posts, {
+      force: true, redditCommunities: ['LocalLLaMA', 'OpenAI'],
+    });
+
+    expect(fetchMock.mock.calls[0][0]).toContain('/r/LocalLLaMA+OpenAI/hot.json');
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
+    expect(result.cards.map(({ id }) => id)).toEqual(['reddit:t3_a']);
+    expect(result.status.label).toBe('Reddit');
+  });
+
+  it('keeps cache entries separate per configured subreddit list', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(response(listing([redditPost('a')])));
+    vi.stubGlobal('fetch', fetchMock);
+    const filters = createDefaultFilters().posts;
+
+    await fetchSection('posts', filters, { redditCommunities: ['LocalLLaMA'] });
+    const again = await fetchSection('posts', filters, { redditCommunities: ['LocalLLaMA'] });
+    await fetchSection('posts', filters, { redditCommunities: ['OpenAI'] });
+
+    expect(again.cached).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a Reddit-specific fallback card when Reddit blocks the request', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response('blocked', { status: 403, type: 'text/html' })));
+
+    const result = await fetchSection('posts', createDefaultFilters().posts, {
+      force: true, redditCommunities: ['LocalLLaMA'],
+    });
+
+    expect(result.cards).toHaveLength(1);
+    expect(result.cards[0]).toMatchObject({ source: 'reddit', id: 'fallback:reddit:ai' });
+    expect(result.status.stale).toBe(true);
+  });
+});

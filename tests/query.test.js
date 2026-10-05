@@ -16,6 +16,7 @@ import {
   buildGithubRequest,
   buildModelsUrl,
   buildPostsUrl,
+  buildRedditPostsUrl,
   matchesTopic,
   resolveGithubRequestUrl,
   resolveArxivRequestUrl,
@@ -43,6 +44,7 @@ describe('workbench query builders', () => {
     expect(second.code.language).toBe('all');
     expect(second.code).toEqual({ time: 'day', spokenLanguage: 'all', language: 'all' });
     expect(second.today).toEqual({});
+    expect(second.posts).toEqual({ source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' });
     expect(Object.keys(second)).toEqual(['today', 'code', 'models', 'datasets', 'papers', 'posts', 'library']);
   });
 
@@ -347,5 +349,36 @@ describe('Hacker News posts', () => {
     expect(validateSourceUrl('https://news.ycombinator.com/item?id=1', 'hackernews')).toBe('https://news.ycombinator.com/item?id=1');
     expect(validateSourceUrl('https://example.com/', 'hackernews')).toBe('');
     expect(validateSourceUrl('https://example.com/', 'constructor')).toBe('');
+  });
+});
+
+describe('Reddit posts', () => {
+  const base = { source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' };
+
+  it('combines the configured subreddits into one multireddit request', () => {
+    const url = new URL(buildRedditPostsUrl(base, ['LocalLLaMA', 'MachineLearning']));
+    expect(url.origin + url.pathname).toBe('https://www.reddit.com/r/LocalLLaMA+MachineLearning/hot.json');
+    expect(url.searchParams.get('raw_json')).toBe('1');
+    expect(url.searchParams.get('t')).toBeNull();
+  });
+
+  it('uses one subreddit when selected and maps sorts and Top ranges', () => {
+    const rising = new URL(buildRedditPostsUrl({ ...base, rank: 'rising', community: 'OpenAI' }, ['LocalLLaMA']));
+    expect(rising.pathname).toBe('/r/OpenAI/rising.json');
+    const top = new URL(buildRedditPostsUrl({ ...base, rank: 'top', time: 'month' }, ['LocalLLaMA']));
+    expect(top.pathname).toBe('/r/LocalLLaMA/top.json');
+    expect(top.searchParams.get('t')).toBe('month');
+    expect(new URL(buildRedditPostsUrl({ ...base, rank: 'trending' }, ['LocalLLaMA'])).pathname).toBe('/r/LocalLLaMA/hot.json');
+  });
+
+  it('never lets a malformed subreddit name reach the URL path', () => {
+    expect(new URL(buildRedditPostsUrl(base, ['good_name', '../evil', 'a b', 'x'])).pathname).toBe('/r/good_name/hot.json');
+    expect(() => buildRedditPostsUrl(base, ['../evil'])).toThrow('No subreddits');
+  });
+
+  it('accepts Reddit hosts only for the reddit source', () => {
+    expect(validateSourceUrl('https://www.reddit.com/r/LocalLLaMA/comments/abc/x/', 'reddit'))
+      .toBe('https://www.reddit.com/r/LocalLLaMA/comments/abc/x');
+    expect(validateSourceUrl('https://example.com/r/x', 'reddit')).toBe('');
   });
 });

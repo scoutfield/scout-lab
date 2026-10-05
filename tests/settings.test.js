@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createDefaultPreferences,
   DEFAULT_PREFERENCES,
   isValidTodayMix,
   normalizePreferences,
@@ -53,6 +54,7 @@ describe('settings schema', () => {
       startupSection: 'papers',
       openLinks: 'foreground',
       todayMix: { code: 4, models: 0, datasets: 0, papers: 0 },
+      redditCommunities: [...DEFAULT_PREFERENCES.redditCommunities],
     });
   });
 
@@ -74,5 +76,27 @@ describe('settings schema', () => {
       selectedSection: 'datasets',
       preferences: { startupSection: 'today' },
     }))).toBe('today');
+  });
+});
+
+describe('Reddit community preference', () => {
+  it('defaults to the AI presets and never shares the frozen default array', () => {
+    expect(normalizePreferences({}).redditCommunities).toEqual(DEFAULT_PREFERENCES.redditCommunities);
+    const fresh = createDefaultPreferences();
+    fresh.redditCommunities.push('Extra');
+    expect(DEFAULT_PREFERENCES.redditCommunities).not.toContain('Extra');
+  });
+
+  it('parses free text, strips r/ prefixes, removes duplicates and invalid names', () => {
+    expect(normalizePreferences({ redditCommunities: 'r/LocalLLaMA, /r/MachineLearning  localllama bad-name x ../evil' })
+      .redditCommunities).toEqual(['LocalLLaMA', 'MachineLearning']);
+    expect(normalizePreferences({ redditCommunities: ['Foo_Bar', 5, null, 'OpenAI'] }).redditCommunities)
+      .toEqual(['Foo_Bar', 'OpenAI']);
+  });
+
+  it('falls back to the defaults when nothing valid is left and caps the list at 20', () => {
+    expect(normalizePreferences({ redditCommunities: ' , ' }).redditCommunities).toEqual(DEFAULT_PREFERENCES.redditCommunities);
+    const many = Array.from({ length: 30 }, (_, index) => `sub${index}`);
+    expect(normalizePreferences({ redditCommunities: many }).redditCommunities).toHaveLength(20);
   });
 });

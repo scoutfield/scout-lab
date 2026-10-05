@@ -1,4 +1,10 @@
-import { createDefaultFilters, normalizeWorkbenchFilters, SECTION_ORDER } from './workbenches.js';
+import {
+  createDefaultFilters,
+  normalizeRedditCommunities,
+  normalizeWorkbenchFilters,
+  REDDIT_COMMUNITIES,
+  SECTION_ORDER,
+} from './workbenches.js';
 
 export const SETTINGS_VERSION = 3;
 export const TODAY_LANES = ['code', 'models', 'datasets', 'papers'];
@@ -23,6 +29,7 @@ export const DEFAULT_PREFERENCES = Object.freeze({
   startupSection: 'last-used',
   openLinks: 'foreground',
   todayMix: DEFAULT_TODAY_MIX,
+  redditCommunities: Object.freeze([...REDDIT_COMMUNITIES]),
 });
 
 const normalizeFilterMap = (stored = {}, legacyTopic = 'all') => {
@@ -58,6 +65,7 @@ export const normalizePreferences = (value = {}) => ({
     : DEFAULT_PREFERENCES.startupSection,
   openLinks: LINK_BEHAVIORS.has(value?.openLinks) ? value.openLinks : DEFAULT_PREFERENCES.openLinks,
   todayMix: normalizeTodayMix(value?.todayMix),
+  redditCommunities: normalizeRedditCommunities(value?.redditCommunities),
 });
 
 export const normalizeSettings = (stored = {}) => ({
@@ -77,4 +85,5 @@ export const resolveStartupSection = (settings) => (
 export const createDefaultPreferences = () => ({
   ...DEFAULT_PREFERENCES,
   todayMix: { ...DEFAULT_PREFERENCES.todayMix },
+  redditCommunities: [...DEFAULT_PREFERENCES.redditCommunities],
 });
