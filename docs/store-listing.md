@@ -20,6 +20,7 @@ Features:
 - GitHub Trending repositories with time, spoken-language, programming-language, and topic filters
 - Hugging Face model and dataset discovery with source-specific filters and sorting
 - Hugging Face Daily Papers and raw arXiv research
+- Hot, trending, and top AI posts from Hacker News
 - A local Library for favorites and personal notes
 - Comfortable and compact layouts with light, dark, and system themes
 - Local backup and optional archive export to a folder you choose
@@ -41,6 +42,7 @@ Permission justifications:
 - `https://github.com/*`: Retrieves the public GitHub Trending page displayed in the Code workbench.
 - `https://huggingface.co/*`: Retrieves public model, dataset, and Daily Papers metadata displayed in Scout Lab.
 - `https://export.arxiv.org/*`: Retrieves public arXiv Atom data displayed in the Papers workbench.
+- `https://hn.algolia.com/*`: Retrieves public Hacker News AI posts displayed in the Posts workbench.
 
 Certifications:
 

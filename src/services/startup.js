@@ -1,6 +1,6 @@
 import { fetchSection } from './feeds.js';
 
-export const STARTUP_SECTIONS = Object.freeze(['today', 'code', 'models', 'datasets', 'papers']);
+export const STARTUP_SECTIONS = Object.freeze(['today', 'code', 'models', 'datasets', 'papers', 'posts']);
 
 export const createStartupWarmup = ({
   filters,

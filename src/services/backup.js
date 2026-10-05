@@ -34,7 +34,7 @@ const validateSettings = (settings) => {
   assertObject(preferences, 'Settings preferences');
   if (!['system', 'light', 'dark'].includes(preferences.theme)) throw new Error('Settings contains an invalid theme.');
   if (!['comfortable', 'compact'].includes(preferences.density)) throw new Error('Settings contains an invalid density.');
-  if (!['last-used', 'today', 'code', 'models', 'datasets', 'papers', 'library'].includes(preferences.startupSection)) {
+  if (!['last-used', 'today', 'code', 'models', 'datasets', 'papers', 'posts', 'library'].includes(preferences.startupSection)) {
     throw new Error('Settings contains an invalid startup workbench.');
   }
   if (!['foreground', 'background'].includes(preferences.openLinks)) throw new Error('Settings contains an invalid link behavior.');

@@ -13,7 +13,8 @@
   "permissionJustifications": {
     "https://github.com/*": "Retrieves the public GitHub Trending page displayed in the Code workbench.",
     "https://huggingface.co/*": "Retrieves public model, dataset, and Daily Papers metadata displayed in Scout Lab.",
-    "https://export.arxiv.org/*": "Retrieves public arXiv Atom data displayed in the Papers workbench."
+    "https://export.arxiv.org/*": "Retrieves public arXiv Atom data displayed in the Papers workbench.",
+    "https://hn.algolia.com/*": "Retrieves public Hacker News AI posts displayed in the Posts workbench."
   },
   "distribution": {
     "visibility": "public",

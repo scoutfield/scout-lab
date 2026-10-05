@@ -405,3 +405,59 @@ export const parseArxivFeed = (xml) => {
     };
   });
 };
+
+const AI_POST_PATTERN = /\b(ai|a\.i\.|llms?|gpt(-?\d[\w.]*)?|chatgpt|openai|anthropic|claude|gemini|mistral|llama|deepseek|copilot|transformers?|neural|machine learning|deep learning|diffusion|embeddings?|rag|agents?|agentic|mcp|inference|fine-?tun\w*|model weights|foundation models?)\b/i;
+
+export const isAiPost = (card) => AI_POST_PATTERN.test(`${card.title} ${card.details?.domain || ''}`);
+
+const hostOf = (value) => {
+  try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return ''; }
+};
+
+// Hacker News ranking approximation: points decay with age.
+export const postHotScore = (points, createdAt, now = Date.now()) => {
+  const ageHours = Math.max(0, (now - new Date(createdAt).getTime()) / 3_600_000) || 0;
+  return Math.max(points - 1, 0) / ((ageHours + 2) ** 1.8);
+};
+
+export const normalizePost = (hit, now = Date.now()) => {
+  const id = `${hit.objectID || hit.story_id || ''}`;
+  const points = Number(hit.points) || 0;
+  const comments = Number(hit.num_comments) || 0;
+  const domain = hostOf(hit.url);
+  const articleUrl = validateSourceUrl(hit.url, 'web');
+  const publishedAt = hit.created_at || '';
+  const card = baseCard({
+    id: `hn:${id}`,
+    source: 'hackernews',
+    section: 'posts',
+    type: 'Post',
+    title: hit.title || hit.story_title,
+    url: `https://news.ycombinator.com/item?id=${encodeURIComponent(id)}`,
+    summary: readableDescription(hit.story_text || '') || (domain
+      ? `Shared from ${domain}.`
+      : 'Discussion thread on Hacker News.'),
+    tags: ['Hacker News', domain].filter(Boolean),
+    owner: hit.author || '',
+    publishedAt,
+  });
+
+  return {
+    ...card,
+    metricLabel: 'Hacker News points and comments',
+    metricValue: `${compactNumber(points)} pts · ${compactNumber(comments)} comments`,
+    metrics: [
+      metric('points', 'Points', points, 'Hacker News points'),
+      metric('comments', 'Comments', comments, 'Hacker News comments'),
+    ],
+    openLabel: 'Discuss',
+    links: articleUrl ? [{ id: 'article', label: 'Article', url: articleUrl, source: 'web' }] : [],
+    secondary: {
+      left: `${domain || 'Hacker News'}${hit.author ? ` · ${hit.author}` : ''}`,
+      right: `Posted ${formatDate(publishedAt)}`,
+    },
+    details: {
+      points, comments, domain, publishedAt, hotScore: postHotScore(points, publishedAt, now),
+    },
+  };
+};

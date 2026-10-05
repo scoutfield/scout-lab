@@ -13,7 +13,7 @@ It is built for one repeated habit: **inspect one useful signal, save one idea, 
 
 ## What Scout Lab Does
 
-Scout Lab brings public discovery signals from GitHub, Hugging Face, and arXiv into six focused workbenches:
+Scout Lab brings public discovery signals from GitHub, Hugging Face, arXiv, and Hacker News into seven focused workbenches:
 
 | Workbench | Purpose | Source |
 | --- | --- | --- |
@@ -22,9 +22,10 @@ Scout Lab brings public discovery signals from GitHub, Hugging Face, and arXiv i
 | **Models** | Models ranked and filtered with Hugging Face-native signals | Hugging Face Models |
 | **Datasets** | Training and evaluation data with source-specific facets | Hugging Face Datasets |
 | **Papers** | Community attention plus a raw research feed | Hugging Face Daily Papers and arXiv |
+| **Posts** | Hot, trending, and top AI discussions from the Hacker News community | Hacker News (Algolia API) |
 | **Library** | Favorites and personal notes that remain available locally | Your saved Scout Lab data |
 
-Scout Lab is intentionally not a general search page, bookmark manager, social feed, or AI news dashboard. It is a compact research bench designed for repeated daily use.
+Scout Lab is intentionally not a general search page, bookmark manager, social feed, or general news dashboard. It is a compact research bench designed for repeated daily use.
 
 ## Workbenches
 
@@ -85,6 +86,16 @@ Papers combines two research modes without pretending they use the same ranking 
 - **Raw arXiv** reads recent `cs.AI`, `cs.LG`, or combined research with source-valid date and relevance sorting.
 
 Community papers may show upvotes and comments. Raw arXiv cards show dates and categories, never a fabricated popularity score. Direct abstract and PDF links are preserved.
+
+### Posts
+
+Posts surfaces AI discussions from Hacker News through its public Algolia search API. It does not scrape or mix in other communities.
+
+- **Hot** shows AI stories currently on the Hacker News front page, ordered by points decayed by age.
+- **Trending** shows AI stories from the last 24 hours ranked by that same points-per-age velocity.
+- **Top** shows the highest-scoring AI stories for Today, This week, or This month.
+
+Each card opens the Hacker News discussion and keeps the original article as a secondary link. Points and comment counts come from Hacker News; AI relevance is a keyword match on the title, so an occasional miss is possible.
 
 ### Library
 

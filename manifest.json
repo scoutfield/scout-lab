@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Scout Lab",
-  "description": "AI discovery signals from code, models, datasets, and papers.",
+  "description": "AI discovery signals from code, models, datasets, papers, and community posts.",
   "version": "1.0.5",
   "icons": {
     "16": "assets/icons/icon-16.png",
@@ -15,9 +15,10 @@
   "host_permissions": [
     "https://github.com/*",
     "https://huggingface.co/*",
-    "https://export.arxiv.org/*"
+    "https://export.arxiv.org/*",
+    "https://hn.algolia.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://github.com https://huggingface.co https://export.arxiv.org"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://github.com https://huggingface.co https://export.arxiv.org https://hn.algolia.com"
   }
 }

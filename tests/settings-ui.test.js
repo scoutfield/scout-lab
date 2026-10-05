@@ -21,7 +21,7 @@ describe('settings drawer renderer', () => {
     expect(document.querySelector('[data-setting="density"]')).toBeTruthy();
     expect(document.querySelector('[data-setting="startupSection"]')).toBeTruthy();
     expect(document.querySelectorAll('[data-today-lane]')).toHaveLength(4);
-    expect(document.querySelectorAll('[data-restore-workbench]')).toHaveLength(6);
+    expect(document.querySelectorAll('[data-restore-workbench]')).toHaveLength(7);
     expect(document.querySelector('[data-command="export-backup"]')).toBeTruthy();
     expect(document.querySelector('[data-command="choose-import"]')).toBeTruthy();
   });

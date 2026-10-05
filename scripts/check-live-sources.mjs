@@ -5,6 +5,7 @@ import {
   buildDatasetsRequest,
   buildGithubRequest,
   buildModelsUrl,
+  buildPostsUrl,
 } from '../src/services/query.js';
 import { parseGithubTrending, parseHuggingFaceDatasetsPage } from '../src/services/normalizers.js';
 import { createDefaultFilters } from '../src/workbenches.js';
@@ -135,6 +136,21 @@ const arxiv = await record('arXiv Atom contract', async () => {
     throw new Error('Missing entry, author, category, or PDF fields');
   }
   return { entries: ids.length, links: ids.map((id) => `https://arxiv.org/abs/${id}`) };
+});
+
+const posts = await record('Hacker News Algolia contract', async () => {
+  const results = [];
+  for (const rank of ['hot', 'trending', 'top']) {
+    const response = await fetchChecked(buildPostsUrl({ ...defaults.posts, rank }));
+    const { hits } = await response.json();
+    if (!Array.isArray(hits)) throw new Error(`${rank} returned no hits array`);
+    const first = hits[0];
+    if (first && (!first.objectID || !first.title || !Number.isFinite(first.points) || !Number.isFinite(first.num_comments))) {
+      throw new Error(`${rank} is missing id, title, points, or comments`);
+    }
+    results.push({ rank, entries: hits.length });
+  }
+  return { sorts: results };
 });
 
 const linkGroups = [trending, trendingEnglish, trendingChinese, models, datasets, papers, arxiv].filter(Boolean);

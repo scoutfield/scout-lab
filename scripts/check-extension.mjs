@@ -75,11 +75,11 @@ if (manifest.chrome_url_overrides?.newtab !== 'newtab.html') {
   fail('manifest.json must override the new tab with newtab.html');
 }
 
-for (const permission of ['https://github.com/*', 'https://huggingface.co/*', 'https://export.arxiv.org/*']) {
+for (const permission of ['https://github.com/*', 'https://huggingface.co/*', 'https://export.arxiv.org/*', 'https://hn.algolia.com/*']) {
   if (!manifest.host_permissions?.includes(permission)) fail(`Missing host permission: ${permission}`);
 }
 
-for (const origin of ['https://github.com', 'https://huggingface.co', 'https://export.arxiv.org']) {
+for (const origin of ['https://github.com', 'https://huggingface.co', 'https://export.arxiv.org', 'https://hn.algolia.com']) {
   if (!manifest.content_security_policy?.extension_pages?.includes(origin)) fail(`Missing connect-src origin: ${origin}`);
 }
 
