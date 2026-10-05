@@ -329,9 +329,9 @@ describe('Hacker News posts', () => {
     expect(url.searchParams.get('query')).toContain('LLM');
   });
 
-  it('limits Trending to the last day and Top to the selected range', () => {
-    const trending = new URL(buildPostsUrl({ rank: 'trending', time: 'month', topic: 'all' }, now));
-    expect(trending.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 86400},points>=5`);
+  it('limits Top to the selected range and treats retired sorts as Hot', () => {
+    const retired = new URL(buildPostsUrl({ rank: 'trending', time: 'month', topic: 'all' }, now));
+    expect(retired.searchParams.get('tags')).toBe('story,front_page');
     const top = new URL(buildPostsUrl({ rank: 'top', time: 'month', topic: 'all' }, now));
     expect(top.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 30 * 86400},points>=20`);
   });
@@ -362,18 +362,25 @@ describe('Reddit posts', () => {
     expect(url.searchParams.get('t')).toBeNull();
   });
 
-  it('uses one subreddit when selected and maps sorts and Top ranges', () => {
-    const rising = new URL(buildRedditPostsUrl({ ...base, rank: 'rising', community: 'OpenAI' }, ['LocalLLaMA']));
-    expect(rising.pathname).toBe('/r/OpenAI/rising.json');
+  it('uses one subreddit when selected, maps Top ranges, and treats retired sorts as Hot', () => {
+    const single = new URL(buildRedditPostsUrl({ ...base, community: 'OpenAI' }, ['LocalLLaMA']));
+    expect(single.pathname).toBe('/r/OpenAI/hot.json');
     const top = new URL(buildRedditPostsUrl({ ...base, rank: 'top', time: 'month' }, ['LocalLLaMA']));
     expect(top.pathname).toBe('/r/LocalLLaMA/top.json');
     expect(top.searchParams.get('t')).toBe('month');
-    expect(new URL(buildRedditPostsUrl({ ...base, rank: 'trending' }, ['LocalLLaMA'])).pathname).toBe('/r/LocalLLaMA/hot.json');
+    expect(new URL(buildRedditPostsUrl({ ...base, rank: 'rising' }, ['LocalLLaMA'])).pathname).toBe('/r/LocalLLaMA/hot.json');
   });
 
   it('never lets a malformed subreddit name reach the URL path', () => {
     expect(new URL(buildRedditPostsUrl(base, ['good_name', '../evil', 'a b', 'x'])).pathname).toBe('/r/good_name/hot.json');
     expect(() => buildRedditPostsUrl(base, ['../evil'])).toThrow('No subreddits');
+  });
+
+  it('migrates saved Rising and Trending sorts to Hot', () => {
+    for (const rank of ['rising', 'trending']) {
+      expect(normalizeWorkbenchFilters('posts', { ...base, rank, time: 'month' })).toEqual({ ...base, rank: 'hot', time: 'month' });
+    }
+    expect(normalizeWorkbenchFilters('posts', { ...base, rank: 'top' }).rank).toBe('top');
   });
 
   it('accepts Reddit hosts only for the reddit source', () => {

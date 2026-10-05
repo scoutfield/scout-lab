@@ -22,7 +22,7 @@ Scout Lab brings public discovery signals from GitHub, Hugging Face, arXiv, Redd
 | **Models** | Models ranked and filtered with Hugging Face-native signals | Hugging Face Models |
 | **Datasets** | Training and evaluation data with source-specific facets | Hugging Face Datasets |
 | **Papers** | Community attention plus a raw research feed | Hugging Face Daily Papers and arXiv |
-| **Posts** | Hot, rising, and top AI discussions from subreddits you choose, plus Hacker News | Reddit and Hacker News |
+| **Posts** | Hot and top AI discussions from subreddits you choose, plus Hacker News | Reddit and Hacker News |
 | **Library** | Favorites and personal notes that remain available locally | Your saved Scout Lab data |
 
 Scout Lab is intentionally not a general search page, bookmark manager, social feed, or general news dashboard. It is a compact research bench designed for repeated daily use.
@@ -91,8 +91,8 @@ Community papers may show upvotes and comments. Raw arXiv cards show dates and c
 
 Posts surfaces AI discussions from two community sources, selected with the Source switch. Requests go directly from your browser to the source; there is no Scout Lab server.
 
-- **Reddit** (default) reads the public JSON feeds of the AI subreddits you choose. Sorts match Reddit: **Hot**, **Rising**, and **Top** (Today, This week, or This month). The Subreddit selector shows one community or **All my subreddits**, which you edit in Settings under *Reddit communities* (comma-separated, up to 20; the defaults are LocalLLaMA, MachineLearning, artificial, OpenAI, ClaudeAI, LLMDevs, and StableDiffusion). Pinned, removed, and NSFW posts are skipped, and the AI topic filter still applies.
-- **Hacker News** uses its public Algolia search API with **Hot** (front page), **Trending** (last 24 hours, points per age), and **Top**. Relevance is a keyword match on the title, so an occasional miss is possible.
+- **Reddit** (default) reads the public JSON feeds of the AI subreddits you choose. Both sources share two sorts: **Hot** and **Top** (Today, This week, or This month). The Subreddit selector shows one community or **All my subreddits**, which you edit in Settings under *Reddit communities* (comma-separated, up to 20; the defaults are LocalLLaMA, MachineLearning, artificial, OpenAI, ClaudeAI, LLMDevs, and StableDiffusion). Pinned, removed, and NSFW posts are skipped, and the AI topic filter still applies.
+- **Hacker News** uses its public Algolia search API with **Hot** (stories on the front page, ordered by points decayed by age) and **Top** (highest points in the range). Relevance is a keyword match on the title, so an occasional miss is possible.
 
 Each card opens the discussion and keeps the original article as a secondary link. Reddit sometimes rate limits or blocks anonymous requests; Posts then shows a fallback card with a link, and you can switch to Hacker News.
 

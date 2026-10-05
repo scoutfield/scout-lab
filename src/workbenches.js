@@ -392,11 +392,8 @@ export const WORKBENCHES = {
         option('reddit', 'Reddit'),
         option('hackernews', 'Hacker News'),
       ], 'segment'),
-      // Reddit offers Hot / Rising / Top and Hacker News Hot / Trending / Top; app.js narrows by source.
       control('rank', 'Sort', [
         option('hot', 'Hot'),
-        option('rising', 'Rising'),
-        option('trending', 'Trending'),
         option('top', 'Top'),
       ], 'segment'),
       control('time', 'Time range', [

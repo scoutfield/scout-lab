@@ -44,7 +44,7 @@ test('Posts shows AI-only Hacker News cards with discussion and article links', 
   await expect(page.locator('.card', { hasText: 'Ask HN' }).getByText('Looking for real setups.')).toBeVisible();
 });
 
-test('Posts sorts by velocity for Trending and by points for Top', async ({ page }) => {
+test('Posts orders Hot by points decayed by age and Top by raw points', async ({ page }) => {
   const requests = [];
   await page.route('https://hn.algolia.com/api/v1/search**', (route) => {
     requests.push(new URL(route.request().url()));
@@ -55,11 +55,10 @@ test('Posts sorts by velocity for Trending and by points for Top', async ({ page
   await page.goto('/newtab.html');
   await expect(page.locator('.grid .card')).toHaveCount(3);
 
-  await page.getByRole('button', { name: 'Trending', exact: true }).click();
-  await expect.poll(() => requests.at(-1).searchParams.get('numericFilters')).toMatch(/^created_at_i>\d+,points>=5$/);
   await expect.poll(titles).toEqual([
     'Small but fresh LLM tool', 'Ask HN: How do you evaluate AI agents?', 'Big old Claude agents debate',
   ]);
+  await expect(page.getByRole('button', { name: 'Trending', exact: true })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Top', exact: true }).click();
   await expect(page.getByLabel('Time range')).toBeVisible();
@@ -114,8 +113,9 @@ test.describe('Reddit source', () => {
     await expect(page.locator('.grid .card')).toHaveCount(2);
     expect(requests[0].pathname).toBe('/r/LocalLLaMA+MachineLearning+artificial+OpenAI+ClaudeAI+LLMDevs+StableDiffusion/hot.json');
     await expect(page.getByLabel('Subreddit')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Rising', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Trending', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Hot', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Top', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rising', exact: true })).toHaveCount(0);
 
     const card = page.locator('.card', { hasText: 'Reddit post a' });
     await expect(card.getByRole('link', { name: /Discuss/ })).toHaveAttribute('href', 'https://www.reddit.com/r/LocalLLaMA/comments/a/slug');
@@ -134,9 +134,6 @@ test.describe('Reddit source', () => {
     await expect(page.locator('.grid .card')).toHaveCount(1);
     await expect(page.getByLabel('Time range')).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Rising', exact: true }).click();
-    await expect.poll(() => requests.at(-1).pathname).toMatch(/\/rising\.json$/);
-
     await page.getByRole('button', { name: 'Top', exact: true }).click();
     await expect(page.getByLabel('Time range')).toBeVisible();
     await expect.poll(() => requests.at(-1).searchParams.get('t')).toBe('week');
@@ -147,7 +144,7 @@ test.describe('Reddit source', () => {
     await expect.poll(() => requests.at(-1).searchParams.get('t')).toBe('month');
   });
 
-  test('switching to Hacker News resets the sort and hides the subreddit selector', async ({ page }) => {
+  test('switching to Hacker News keeps the sort and hides the subreddit selector', async ({ page }) => {
     await page.route('https://www.reddit.com/r/**', (route) => route.fulfill({
       status: 200, contentType: 'application/json', body: JSON.stringify(listing([redditPost('a')])),
     }));
@@ -158,13 +155,13 @@ test.describe('Reddit source', () => {
     });
 
     await page.goto('/newtab.html');
-    await page.getByRole('button', { name: 'Rising', exact: true }).click();
+    await page.getByRole('button', { name: 'Top', exact: true }).click();
     await page.getByRole('button', { name: 'Hacker News', exact: true }).click();
 
     await expect(page.getByLabel('Subreddit')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Hot', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('button', { name: 'Trending', exact: true })).toBeVisible();
-    expect(hnRequests[0].searchParams.get('tags')).toBe('story,front_page');
+    await expect(page.getByRole('button', { name: 'Top', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByLabel('Time range')).toBeVisible();
+    await expect.poll(() => hnRequests.at(-1).searchParams.get('numericFilters')).toMatch(/points>=20$/);
   });
 
   test('Settings controls which subreddits All my subreddits covers', async ({ page }) => {

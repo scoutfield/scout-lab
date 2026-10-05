@@ -155,7 +155,6 @@ const fetchDatasets = async (filters) => {
 
 const POST_SORT = {
   hot: (card) => card.details.hotScore,
-  trending: (card) => card.details.hotScore,
   top: (card) => card.details.points,
 };
 

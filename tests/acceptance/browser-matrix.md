@@ -50,8 +50,8 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 - [ ] Community Papers Trending and Recent both remain inside the selected day/week/month cohort.
 - [ ] Papers source mode, category, time, sort, topic, and search controls work.
 - [ ] Papers switch correctly between community papers and raw arXiv entries.
-- [ ] Posts Hot, Trending, and Top load Hacker News AI stories; the time range appears only for Top; Discuss opens the HN thread and Article opens the original link.
-- [ ] Posts defaults to Reddit with Hot, Rising, and Top; the Subreddit selector appears only for Reddit; switching source resets the sort to Hot.
+- [ ] Posts Hot and Top load Hacker News AI stories; the time range appears only for Top; Discuss opens the HN thread and Article opens the original link.
+- [ ] Posts defaults to Reddit with Hot and Top; the Subreddit selector appears only for Reddit; switching source keeps the selected sort.
 - [ ] Settings > Reddit communities changes which subreddits All my subreddits covers, and an empty field restores the defaults.
 - [ ] Raw arXiv loads in the local preview without a CORS error, and PDF/Code links resolve to their displayed paper.
 

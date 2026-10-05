@@ -210,7 +210,7 @@ export const buildCommunityPapersUrl = (filters, now = new Date()) => {
 
 const POST_RANGE_DAYS = { day: 1, week: 7, month: 30 };
 const AI_POST_TERMS = ['AI', 'LLM', 'GPT', 'OpenAI', 'Anthropic', 'Claude', 'Gemini', '"machine learning"', 'agents'];
-const POST_MIN_POINTS = { hot: 0, trending: 5, top: 20 };
+const POST_MIN_POINTS = { hot: 0, top: 20 };
 
 export const buildPostsUrl = (filters, now = new Date()) => {
   const rank = POST_MIN_POINTS[filters.rank] === undefined ? 'hot' : filters.rank;
@@ -223,14 +223,14 @@ export const buildPostsUrl = (filters, now = new Date()) => {
     params.set('tags', 'story,front_page');
   } else {
     params.set('tags', 'story');
-    const days = rank === 'trending' ? 1 : POST_RANGE_DAYS[filters.time] || 7;
+    const days = POST_RANGE_DAYS[filters.time] || 7;
     numeric.push(`created_at_i>${seconds - days * 86400}`, `points>=${POST_MIN_POINTS[rank]}`);
   }
   if (numeric.length) params.set('numericFilters', numeric.join(','));
   return `https://hn.algolia.com/api/v1/search?${params}`;
 };
 
-const REDDIT_SORTS = new Set(['hot', 'rising', 'top']);
+const REDDIT_SORTS = new Set(['hot', 'top']);
 
 export const buildRedditPostsUrl = (filters, communities = []) => {
   const names = filters.community && filters.community !== 'all' ? [filters.community] : communities;

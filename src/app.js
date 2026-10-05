@@ -111,16 +111,13 @@ const setState = (patch) => {
 const activeWorkbench = () => {
   const workbench = getWorkbench(state.selectedSection);
   if (workbench.id === 'posts') {
+    // The range only applies to Top, and subreddits only to Reddit.
     const { source, rank } = state.filters.posts;
-    const reddit = source !== 'hackernews';
-    const sorts = reddit ? ['hot', 'rising', 'top'] : ['hot', 'trending', 'top'];
     return {
       ...workbench,
-      controls: workbench.controls
-        .filter(({ id }) => (id !== 'time' || rank === 'top') && (id !== 'community' || reddit))
-        .map((control) => (control.id === 'rank'
-          ? { ...control, options: control.options.filter(({ value }) => sorts.includes(value)) }
-          : control)),
+      controls: workbench.controls.filter(({ id }) => (
+        (id !== 'time' || rank === 'top') && (id !== 'community' || source !== 'hackernews')
+      )),
     };
   }
   if (workbench.id !== 'papers') return workbench;
@@ -370,9 +367,6 @@ const updateFilters = async (patch) => {
   const current = state.filters[section];
   let nextPatch = { ...patch };
 
-  if (section === 'posts' && patch.source && patch.source !== current.source) {
-    nextPatch = { ...nextPatch, rank: 'hot' };
-  }
   if (section === 'papers' && patch.source === 'arxiv') {
     nextPatch = { ...nextPatch, sort: 'newest' };
   }

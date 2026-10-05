@@ -141,7 +141,7 @@ const arxiv = await record('arXiv Atom contract', async () => {
 
 const posts = await record('Hacker News Algolia contract', async () => {
   const results = [];
-  for (const rank of ['hot', 'trending', 'top']) {
+  for (const rank of ['hot', 'top']) {
     const response = await fetchChecked(buildPostsUrl({ ...defaults.posts, rank }));
     const { hits } = await response.json();
     if (!Array.isArray(hits)) throw new Error(`${rank} returned no hits array`);
