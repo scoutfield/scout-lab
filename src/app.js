@@ -111,14 +111,10 @@ const setState = (patch) => {
 const activeWorkbench = () => {
   const workbench = getWorkbench(state.selectedSection);
   if (workbench.id === 'posts') {
-    // The range only applies to Top, and subreddits only to Reddit.
-    const { source, rank } = state.filters.posts;
-    return {
-      ...workbench,
-      controls: workbench.controls.filter(({ id }) => (
-        (id !== 'time' || rank === 'top') && (id !== 'community' || source !== 'hackernews')
-      )),
-    };
+    // Subreddits only apply to Reddit.
+    return state.filters.posts.source === 'hackernews'
+      ? { ...workbench, controls: workbench.controls.filter(({ id }) => id !== 'community') }
+      : workbench;
   }
   if (workbench.id !== 'papers') return workbench;
 

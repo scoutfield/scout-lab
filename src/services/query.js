@@ -210,36 +210,24 @@ export const buildCommunityPapersUrl = (filters, now = new Date()) => {
 
 const POST_RANGE_DAYS = { day: 1, week: 7, month: 30 };
 const AI_POST_TERMS = ['AI', 'LLM', 'GPT', 'OpenAI', 'Anthropic', 'Claude', 'Gemini', '"machine learning"', 'agents'];
-const POST_MIN_POINTS = { hot: 0, top: 20 };
+const HN_MIN_POINTS = 20;
 
 export const buildPostsUrl = (filters, now = new Date()) => {
-  const rank = POST_MIN_POINTS[filters.rank] === undefined ? 'hot' : filters.rank;
   const topicTerms = (TOPIC_TERMS[filters.topic] || []).map((term) => (term.includes(' ') ? `"${term}"` : term));
   const terms = (topicTerms.length ? topicTerms : AI_POST_TERMS).join(' ');
-  const params = new URLSearchParams({ query: terms, optionalWords: terms, hitsPerPage: '100' });
-  const seconds = Math.floor(now.getTime() / 1000);
-  const numeric = [];
-  if (rank === 'hot') {
-    params.set('tags', 'story,front_page');
-  } else {
-    params.set('tags', 'story');
-    const days = POST_RANGE_DAYS[filters.time] || 7;
-    numeric.push(`created_at_i>${seconds - days * 86400}`, `points>=${POST_MIN_POINTS[rank]}`);
-  }
-  if (numeric.length) params.set('numericFilters', numeric.join(','));
+  const params = new URLSearchParams({ query: terms, optionalWords: terms, hitsPerPage: '100', tags: 'story' });
+  const since = Math.floor(now.getTime() / 1000) - (POST_RANGE_DAYS[filters.time] || 7) * 86400;
+  params.set('numericFilters', `created_at_i>${since},points>=${HN_MIN_POINTS}`);
   return `https://hn.algolia.com/api/v1/search?${params}`;
 };
-
-const REDDIT_SORTS = new Set(['hot', 'top']);
 
 export const buildRedditPostsUrl = (filters, communities = []) => {
   const names = filters.community && filters.community !== 'all' ? [filters.community] : communities;
   const safe = names.filter((name) => /^[A-Za-z0-9_]{2,21}$/.test(name));
   if (!safe.length) throw new Error('No subreddits are configured');
-  const sort = REDDIT_SORTS.has(filters.rank) ? filters.rank : 'hot';
-  const params = new URLSearchParams({ limit: '50', raw_json: '1' });
-  if (sort === 'top') params.set('t', ['day', 'week', 'month'].includes(filters.time) ? filters.time : 'week');
-  return `https://www.reddit.com/r/${safe.join('+')}/${sort}.json?${params}`;
+  const range = ['day', 'week', 'month'].includes(filters.time) ? filters.time : 'week';
+  const params = new URLSearchParams({ limit: '50', raw_json: '1', t: range });
+  return `https://www.reddit.com/r/${safe.join('+')}/top.json?${params}`;
 };
 
 const arxivCategory = (topic) => {

@@ -414,13 +414,7 @@ const hostOf = (value) => {
   try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return ''; }
 };
 
-// Hacker News ranking approximation: points decay with age.
-export const postHotScore = (points, createdAt, now = Date.now()) => {
-  const ageHours = Math.max(0, (now - new Date(createdAt).getTime()) / 3_600_000) || 0;
-  return Math.max(points - 1, 0) / ((ageHours + 2) ** 1.8);
-};
-
-export const normalizePost = (hit, now = Date.now()) => {
+export const normalizePost = (hit) => {
   const id = `${hit.objectID || hit.story_id || ''}`;
   const points = Number(hit.points) || 0;
   const comments = Number(hit.num_comments) || 0;
@@ -457,9 +451,7 @@ export const normalizePost = (hit, now = Date.now()) => {
       left: `${domain || 'Hacker News'}${hit.author ? ` · ${hit.author}` : ''}`,
       right: `Posted ${formatDate(publishedAt)}`,
     },
-    details: {
-      points, comments, domain, publishedAt, hotScore: postHotScore(points, publishedAt, now),
-    },
+    details: { points, comments, domain, publishedAt },
   };
 };
 

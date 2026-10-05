@@ -140,22 +140,18 @@ const arxiv = await record('arXiv Atom contract', async () => {
 });
 
 const posts = await record('Hacker News Algolia contract', async () => {
-  const results = [];
-  for (const rank of ['hot', 'top']) {
-    const response = await fetchChecked(buildPostsUrl({ ...defaults.posts, rank }));
-    const { hits } = await response.json();
-    if (!Array.isArray(hits)) throw new Error(`${rank} returned no hits array`);
-    const first = hits[0];
-    if (first && (!first.objectID || !first.title || !Number.isFinite(first.points) || !Number.isFinite(first.num_comments))) {
-      throw new Error(`${rank} is missing id, title, points, or comments`);
-    }
-    results.push({ rank, entries: hits.length });
+  const response = await fetchChecked(buildPostsUrl(defaults.posts));
+  const { hits } = await response.json();
+  if (!Array.isArray(hits)) throw new Error('Hacker News returned no hits array');
+  const first = hits[0];
+  if (first && (!first.objectID || !first.title || !Number.isFinite(first.points) || !Number.isFinite(first.num_comments))) {
+    throw new Error('Hacker News is missing id, title, points, or comments');
   }
-  return { sorts: results };
+  return { entries: hits.length };
 });
 
 await record('Reddit public JSON contract', async () => {
-  const response = await fetch(buildRedditPostsUrl({ ...defaults.posts, rank: 'hot' }, ['LocalLLaMA', 'MachineLearning']), {
+  const response = await fetch(buildRedditPostsUrl(defaults.posts, ['LocalLLaMA', 'MachineLearning']), {
     credentials: 'omit', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT),
   });
   // Reddit blocks many datacenter and CI addresses; that says nothing about a user's browser.

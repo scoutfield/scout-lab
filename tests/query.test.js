@@ -44,7 +44,7 @@ describe('workbench query builders', () => {
     expect(second.code.language).toBe('all');
     expect(second.code).toEqual({ time: 'day', spokenLanguage: 'all', language: 'all' });
     expect(second.today).toEqual({});
-    expect(second.posts).toEqual({ source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' });
+    expect(second.posts).toEqual({ source: 'reddit', time: 'week', community: 'all', topic: 'all' });
     expect(Object.keys(second)).toEqual(['today', 'code', 'models', 'datasets', 'papers', 'posts', 'library']);
   });
 
@@ -321,23 +321,20 @@ describe('Hacker News posts', () => {
   const now = new Date('2026-10-04T00:00:00Z');
   const seconds = Math.floor(now.getTime() / 1000);
 
-  it('queries the front page for Hot without a time window', () => {
-    const url = new URL(buildPostsUrl({ rank: 'hot', time: 'week', topic: 'all' }, now));
+  it('searches stories inside the selected range with a minimum score', () => {
+    const url = new URL(buildPostsUrl({ time: 'week', topic: 'all' }, now));
     expect(url.origin + url.pathname).toBe('https://hn.algolia.com/api/v1/search');
-    expect(url.searchParams.get('tags')).toBe('story,front_page');
-    expect(url.searchParams.get('numericFilters')).toBeNull();
+    expect(url.searchParams.get('tags')).toBe('story');
+    expect(url.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 7 * 86400},points>=20`);
     expect(url.searchParams.get('query')).toContain('LLM');
-  });
-
-  it('limits Top to the selected range and treats retired sorts as Hot', () => {
-    const retired = new URL(buildPostsUrl({ rank: 'trending', time: 'month', topic: 'all' }, now));
-    expect(retired.searchParams.get('tags')).toBe('story,front_page');
-    const top = new URL(buildPostsUrl({ rank: 'top', time: 'month', topic: 'all' }, now));
-    expect(top.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 30 * 86400},points>=20`);
+    const month = new URL(buildPostsUrl({ time: 'month', topic: 'all' }, now));
+    expect(month.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 30 * 86400},points>=20`);
+    const day = new URL(buildPostsUrl({ time: 'day', topic: 'all' }, now));
+    expect(day.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 86400},points>=20`);
   });
 
   it('narrows the query with the AI topic and quotes phrases', () => {
-    const url = new URL(buildPostsUrl({ rank: 'top', time: 'week', topic: 'llms' }, now));
+    const url = new URL(buildPostsUrl({ time: 'week', topic: 'llms' }, now));
     expect(url.searchParams.get('query')).toBe('llm "language model" transformer');
     expect(url.searchParams.get('optionalWords')).toBe(url.searchParams.get('query'));
   });
@@ -353,34 +350,32 @@ describe('Hacker News posts', () => {
 });
 
 describe('Reddit posts', () => {
-  const base = { source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' };
+  const base = { source: 'reddit', time: 'week', community: 'all', topic: 'all' };
 
   it('combines the configured subreddits into one multireddit request', () => {
     const url = new URL(buildRedditPostsUrl(base, ['LocalLLaMA', 'MachineLearning']));
-    expect(url.origin + url.pathname).toBe('https://www.reddit.com/r/LocalLLaMA+MachineLearning/hot.json');
+    expect(url.origin + url.pathname).toBe('https://www.reddit.com/r/LocalLLaMA+MachineLearning/top.json');
     expect(url.searchParams.get('raw_json')).toBe('1');
-    expect(url.searchParams.get('t')).toBeNull();
+    expect(url.searchParams.get('t')).toBe('week');
   });
 
-  it('uses one subreddit when selected, maps Top ranges, and treats retired sorts as Hot', () => {
-    const single = new URL(buildRedditPostsUrl({ ...base, community: 'OpenAI' }, ['LocalLLaMA']));
-    expect(single.pathname).toBe('/r/OpenAI/hot.json');
-    const top = new URL(buildRedditPostsUrl({ ...base, rank: 'top', time: 'month' }, ['LocalLLaMA']));
-    expect(top.pathname).toBe('/r/LocalLLaMA/top.json');
-    expect(top.searchParams.get('t')).toBe('month');
-    expect(new URL(buildRedditPostsUrl({ ...base, rank: 'rising' }, ['LocalLLaMA'])).pathname).toBe('/r/LocalLLaMA/hot.json');
+  it('uses one subreddit when selected and maps the time range', () => {
+    const single = new URL(buildRedditPostsUrl({ ...base, community: 'OpenAI', time: 'month' }, ['LocalLLaMA']));
+    expect(single.pathname).toBe('/r/OpenAI/top.json');
+    expect(single.searchParams.get('t')).toBe('month');
+    expect(new URL(buildRedditPostsUrl({ ...base, time: 'day' }, ['LocalLLaMA'])).searchParams.get('t')).toBe('day');
+    expect(new URL(buildRedditPostsUrl({ ...base, time: 'year' }, ['LocalLLaMA'])).searchParams.get('t')).toBe('week');
   });
 
   it('never lets a malformed subreddit name reach the URL path', () => {
-    expect(new URL(buildRedditPostsUrl(base, ['good_name', '../evil', 'a b', 'x'])).pathname).toBe('/r/good_name/hot.json');
+    expect(new URL(buildRedditPostsUrl(base, ['good_name', '../evil', 'a b', 'x'])).pathname).toBe('/r/good_name/top.json');
     expect(() => buildRedditPostsUrl(base, ['../evil'])).toThrow('No subreddits');
   });
 
-  it('migrates saved Rising and Trending sorts to Hot', () => {
-    for (const rank of ['rising', 'trending']) {
-      expect(normalizeWorkbenchFilters('posts', { ...base, rank, time: 'month' })).toEqual({ ...base, rank: 'hot', time: 'month' });
+  it('drops the retired sort from saved Posts filters and keeps the rest', () => {
+    for (const rank of ['hot', 'rising', 'trending', 'top']) {
+      expect(normalizeWorkbenchFilters('posts', { ...base, rank, time: 'month' })).toEqual({ ...base, time: 'month' });
     }
-    expect(normalizeWorkbenchFilters('posts', { ...base, rank: 'top' }).rank).toBe('top');
   });
 
   it('accepts Reddit hosts only for the reddit source', () => {

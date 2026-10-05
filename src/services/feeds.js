@@ -153,11 +153,6 @@ const fetchDatasets = async (filters) => {
   return { cards, status: { label: 'Hugging Face datasets', stale: false } };
 };
 
-const POST_SORT = {
-  hot: (card) => card.details.hotScore,
-  top: (card) => card.details.points,
-};
-
 const fetchRedditPosts = async (filters, options) => {
   const data = await fetchJson(buildRedditPostsUrl(filters, options.redditCommunities), { credentials: 'omit' });
   if (!Array.isArray(data?.data?.children)) throw new Error('Reddit returned an unexpected response');
@@ -172,10 +167,9 @@ const fetchPosts = async (filters, options = {}) => {
   if (filters.source !== 'hackernews') return fetchRedditPosts(filters, options);
   const data = await fetchJson(buildPostsUrl(filters));
   if (!Array.isArray(data?.hits)) throw new Error('Hacker News search returned an unexpected response');
-  const sortKey = POST_SORT[filters.rank] || POST_SORT.hot;
   const cards = data.hits.filter((hit) => hit.title && hit.objectID).map((hit) => normalizePost(hit))
     .filter((card) => isAiPost(card) && matchesTopic(card, filters.topic))
-    .sort((left, right) => sortKey(right) - sortKey(left))
+    .sort((left, right) => right.details.points - left.details.points)
     .slice(0, 24);
   return { cards, status: { label: 'Hacker News', stale: false } };
 };

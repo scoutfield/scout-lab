@@ -385,16 +385,12 @@ export const WORKBENCHES = {
     id: 'posts',
     label: 'Posts',
     title: 'Posts',
-    subtitle: 'AI discussions from Reddit and Hacker News, ranked by the community.',
-    defaults: { source: 'reddit', rank: 'hot', time: 'week', community: 'all', topic: 'all' },
+    subtitle: 'The highest-scoring AI discussions from Reddit and Hacker News.',
+    defaults: { source: 'reddit', time: 'week', community: 'all', topic: 'all' },
     controls: [
       control('source', 'Source', [
         option('reddit', 'Reddit'),
         option('hackernews', 'Hacker News'),
-      ], 'segment'),
-      control('rank', 'Sort', [
-        option('hot', 'Hot'),
-        option('top', 'Top'),
       ], 'segment'),
       control('time', 'Time range', [
         option('day', 'Today'),

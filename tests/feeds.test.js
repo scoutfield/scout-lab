@@ -347,7 +347,7 @@ describe('Reddit posts feed', () => {
       force: true, redditCommunities: ['LocalLLaMA', 'OpenAI'],
     });
 
-    expect(fetchMock.mock.calls[0][0]).toContain('/r/LocalLLaMA+OpenAI/hot.json');
+    expect(fetchMock.mock.calls[0][0]).toContain('/r/LocalLLaMA+OpenAI/top.json');
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'omit' });
     expect(result.cards.map(({ id }) => id)).toEqual(['reddit:t3_a']);
     expect(result.status.label).toBe('Reddit');

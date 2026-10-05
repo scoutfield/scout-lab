@@ -35,8 +35,8 @@ test('Posts shows AI-only Hacker News cards with discussion and article links', 
   await expect(page.locator('[data-section="posts"]')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('.grid .card')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: 'Why I stopped using Kubernetes' })).toHaveCount(0);
-  expect(requests[0].searchParams.get('tags')).toBe('story,front_page');
-  await expect(page.getByLabel('Time range')).toHaveCount(0);
+  expect(requests[0].searchParams.get('tags')).toBe('story');
+  await expect(page.getByLabel('Time range')).toBeVisible();
 
   const card = page.locator('.card', { hasText: 'Small but fresh LLM tool' });
   await expect(card.getByRole('link', { name: /Discuss/ })).toHaveAttribute('href', 'https://news.ycombinator.com/item?id=1');
@@ -44,7 +44,7 @@ test('Posts shows AI-only Hacker News cards with discussion and article links', 
   await expect(page.locator('.card', { hasText: 'Ask HN' }).getByText('Looking for real setups.')).toBeVisible();
 });
 
-test('Posts orders Hot by points decayed by age and Top by raw points', async ({ page }) => {
+test('Posts is one list sorted by score and filtered by time range', async ({ page }) => {
   const requests = [];
   await page.route('https://hn.algolia.com/api/v1/search**', (route) => {
     requests.push(new URL(route.request().url()));
@@ -53,20 +53,18 @@ test('Posts orders Hot by points decayed by age and Top by raw points', async ({
   const titles = () => page.locator('.grid .card h3').allTextContents();
 
   await page.goto('/newtab.html');
-  await expect(page.locator('.grid .card')).toHaveCount(3);
-
-  await expect.poll(titles).toEqual([
-    'Small but fresh LLM tool', 'Ask HN: How do you evaluate AI agents?', 'Big old Claude agents debate',
-  ]);
-  await expect(page.getByRole('button', { name: 'Trending', exact: true })).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'Top', exact: true }).click();
-  await expect(page.getByLabel('Time range')).toBeVisible();
   await expect.poll(titles).toEqual([
     'Big old Claude agents debate', 'Ask HN: How do you evaluate AI agents?', 'Small but fresh LLM tool',
   ]);
-  await page.getByLabel('Time range').selectOption('month');
-  await expect.poll(() => requests.at(-1).searchParams.get('numericFilters')).toMatch(/^created_at_i>\d+,points>=20$/);
+  for (const retired of ['Hot', 'Top', 'Rising', 'Trending']) {
+    await expect(page.getByRole('button', { name: retired, exact: true })).toHaveCount(0);
+  }
+  expect(requests[0].searchParams.get('numericFilters')).toMatch(/^created_at_i>\d+,points>=20$/);
+
+  await page.getByLabel('Time range').selectOption('day');
+  await expect.poll(() => requests.at(-1).searchParams.get('numericFilters')).toContain(',points>=20');
+  const since = Number(requests.at(-1).searchParams.get('numericFilters').match(/created_at_i>(\d+)/)[1]);
+  expect(Math.abs(since - (now - 86400))).toBeLessThan(120);
 });
 
 test('Posts shows a fallback card when Hacker News is unreachable', async ({ page }) => {
@@ -111,11 +109,10 @@ test.describe('Reddit source', () => {
 
     await page.goto('/newtab.html');
     await expect(page.locator('.grid .card')).toHaveCount(2);
-    expect(requests[0].pathname).toBe('/r/LocalLLaMA+MachineLearning+artificial+OpenAI+ClaudeAI+LLMDevs+StableDiffusion/hot.json');
+    expect(requests[0].pathname).toBe('/r/LocalLLaMA+MachineLearning+artificial+OpenAI+ClaudeAI+LLMDevs+StableDiffusion/top.json');
+    expect(requests[0].searchParams.get('t')).toBe('week');
     await expect(page.getByLabel('Subreddit')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Hot', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByRole('button', { name: 'Top', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Rising', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Hot', exact: true })).toHaveCount(0);
 
     const card = page.locator('.card', { hasText: 'Reddit post a' });
     await expect(card.getByRole('link', { name: /Discuss/ })).toHaveAttribute('href', 'https://www.reddit.com/r/LocalLLaMA/comments/a/slug');
@@ -123,7 +120,7 @@ test.describe('Reddit source', () => {
     await expect(page.locator('.card', { hasText: 'Self text body' }).getByRole('link', { name: 'Article' })).toHaveCount(0);
   });
 
-  test('Reddit sorts, time range, and subreddit map to the right feed', async ({ page }) => {
+  test('Reddit time range and subreddit map to the right feed', async ({ page }) => {
     const requests = [];
     await page.route('https://www.reddit.com/r/**', (route) => {
       requests.push(new URL(route.request().url()));
@@ -132,19 +129,16 @@ test.describe('Reddit source', () => {
 
     await page.goto('/newtab.html');
     await expect(page.locator('.grid .card')).toHaveCount(1);
-    await expect(page.getByLabel('Time range')).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'Top', exact: true }).click();
-    await expect(page.getByLabel('Time range')).toBeVisible();
-    await expect.poll(() => requests.at(-1).searchParams.get('t')).toBe('week');
 
     await page.getByLabel('Subreddit').selectOption('OpenAI');
     await expect.poll(() => requests.at(-1).pathname).toBe('/r/OpenAI/top.json');
     await page.getByLabel('Time range').selectOption('month');
     await expect.poll(() => requests.at(-1).searchParams.get('t')).toBe('month');
+    await page.getByLabel('Time range').selectOption('day');
+    await expect.poll(() => requests.at(-1).searchParams.get('t')).toBe('day');
   });
 
-  test('switching to Hacker News keeps the sort and hides the subreddit selector', async ({ page }) => {
+  test('switching to Hacker News keeps the time range and hides the subreddit selector', async ({ page }) => {
     await page.route('https://www.reddit.com/r/**', (route) => route.fulfill({
       status: 200, contentType: 'application/json', body: JSON.stringify(listing([redditPost('a')])),
     }));
@@ -155,13 +149,12 @@ test.describe('Reddit source', () => {
     });
 
     await page.goto('/newtab.html');
-    await page.getByRole('button', { name: 'Top', exact: true }).click();
+    await page.getByLabel('Time range').selectOption('month');
     await page.getByRole('button', { name: 'Hacker News', exact: true }).click();
 
     await expect(page.getByLabel('Subreddit')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Top', exact: true })).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByLabel('Time range')).toBeVisible();
-    await expect.poll(() => hnRequests.at(-1).searchParams.get('numericFilters')).toMatch(/points>=20$/);
+    await expect(page.getByLabel('Time range')).toHaveValue('month');
+    await expect.poll(() => hnRequests.at(-1)?.searchParams.get('numericFilters')).toMatch(/points>=20$/);
   });
 
   test('Settings controls which subreddits All my subreddits covers', async ({ page }) => {
@@ -179,7 +172,7 @@ test.describe('Reddit source', () => {
     await field.fill('r/OpenAI, ClaudeAI, bad-name');
     await field.press('Tab');
 
-    await expect.poll(() => requests.at(-1).pathname).toBe('/r/OpenAI+ClaudeAI/hot.json');
+    await expect.poll(() => requests.at(-1).pathname).toBe('/r/OpenAI+ClaudeAI/top.json');
     await expect(page.getByLabel('Subreddits covered by Posts')).toHaveValue('OpenAI, ClaudeAI');
 
     await page.getByLabel('Subreddits covered by Posts').fill('');
