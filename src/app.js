@@ -1,3 +1,4 @@
+import { setBrightDataToken, disconnectBrightData } from './services/brightData.js';
 import { parseRedditCommunities } from './settings.js';
 import { connectArchiveFolder, getArchiveStatus, writeDailyArchive } from './services/archive.js';
 import { buildDailyArchive } from './services/archiveFormat.js';
@@ -78,6 +79,7 @@ const applyAppearance = (preferences) => {
 
 applyAppearance(initialSettings.preferences);
 
+let redditPollTimer;
 let state = {
   selectedSection: resolveStartupSection(initialSettings),
   filters: initialSettings.filters,
@@ -310,6 +312,7 @@ const snapshotResult = (section, filters, result) => {
 };
 
 const load = async ({ force = false, clear = false, resultPromise = null } = {}) => {
+  clearTimeout(redditPollTimer);
   const requestId = state.requestId + 1;
   const section = state.selectedSection;
   const filters = { ...state.filters[section] };
@@ -339,6 +342,12 @@ const load = async ({ force = false, clear = false, resultPromise = null } = {})
   if (state.requestId !== requestId) return;
 
   snapshotResult(section, filters, result);
+  if (result.status.redditPending) {
+    redditPollTimer = setTimeout(() => {
+      if (state.selectedSection === section && !state.loading) void load({ force: true });
+    }, 16_000);
+  }
+
   setState({
     cards: result.cards,
     loading: false,
@@ -505,6 +514,16 @@ const applyPendingImport = async () => {
 };
 
 const handleCommand = async (command) => {
+  if (['connect-bright-data', 'disconnect-bright-data'].includes(command)) {
+    try {
+      if (command === 'connect-bright-data') setBrightDataToken(document.querySelector('[data-bright-data-token]').value);
+      else disconnectBrightData();
+      setState({settingsError: '', settingsNotice: command === 'connect-bright-data' ? 'Token saved. Loading Reddit.' : 'Bright Data disconnected.'});
+      render();
+      if (['posts', 'today'].includes(state.selectedSection)) await load({force: true, clear: true});
+    } catch (error) { setState({settingsError: error.message, settingsNotice: ''}); render(); }
+    return;
+  }
   if (command === 'save-subreddits') {
     try {
       const redditCommunities = parseRedditCommunities(document.querySelector('[data-reddit-communities]').value);

@@ -17,9 +17,10 @@
     "https://huggingface.co/*",
     "https://export.arxiv.org/*",
     "https://hn.algolia.com/*",
-    "https://www.reddit.com/*"
+    "https://www.reddit.com/*",
+    "https://api.brightdata.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://github.com https://huggingface.co https://export.arxiv.org https://hn.algolia.com https://www.reddit.com"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://github.com https://huggingface.co https://export.arxiv.org https://hn.algolia.com https://www.reddit.com https://api.brightdata.com"
   }
 }

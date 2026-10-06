@@ -178,14 +178,10 @@ test('Posts shows a labeled fallback when both sources are unreachable', async (
   await expect(page.getByRole('heading', { name: 'AI posts on Hacker News' })).toBeVisible();
 });
 
-test('custom subreddits persist, combine with HN, and validate without losing input', async ({ page }) => {
+test('custom subreddits persist and validate without losing input', async ({ page }) => {
   await mockPosts(page);
-  await page.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({data: {children: [{data: {
-    id: 'abc', title: 'Community release', subreddit: 'OpenAI', permalink: '/r/OpenAI/comments/abc/release/',
-    score: 100, num_comments: 30, created_utc: Math.floor(Date.now()/1000)-3600, is_self: true,
-  }}]}}) }));
   await page.goto('/newtab.html');
-  await expect(page.locator('.grid .card')).toHaveCount(5);
+  await expect(page.locator('.grid .card')).toHaveCount(4);
   await page.getByRole('button', {name: 'Settings', exact: true}).click();
   await page.getByLabel('Subreddits', {exact: true}).fill('OpenAI, /r/LocalLLaMA');
   await page.getByRole('button', {name: 'Save subreddits', exact: true}).click();
@@ -210,7 +206,7 @@ test('Today renders all 40 cached cards and settings preserve the maximum on rel
     const sourceFilters = {...filters, community: {...filters.papers, source:'community'}, arxiv: {...filters.papers, source:'arxiv', sort:'newest'}};
     delete sourceFilters.today; delete sourceFilters.papers; delete sourceFilters.library;
     const cards = Array.from({length:40}, (_,i) => ({id:`test:${i}`, source:'hackernews', section:'posts',type:'Post',title:`Card ${i}`,url:`https://news.ycombinator.com/item?id=${i}`,summary:'Summary',tags:[],metrics:[],links:[],secondary:{left:'',right:''},details:{}}));
-    setCache({section:'today',filters:filters.today,sourceRevision:GITHUB_TRENDING_SOURCE_REVISION,descriptionRevision:DESCRIPTION_REVISION,postsRevision:POSTS_SOURCE_REVISION,redditCommunities:[...DEFAULT_REDDIT_COMMUNITIES],todayMix:getSettings().preferences.todayMix,hiddenIds:[],sourceFilters},cards,900000,{status:{label:'All sources live',stale:false}});
+    setCache({section:'today',filters:filters.today,sourceRevision:GITHUB_TRENDING_SOURCE_REVISION,descriptionRevision:DESCRIPTION_REVISION,postsRevision:POSTS_SOURCE_REVISION,redditCommunities:[...DEFAULT_REDDIT_COMMUNITIES],brightDataConnected:false,todayMix:getSettings().preferences.todayMix,hiddenIds:[],sourceFilters},cards,900000,{status:{label:'All sources live',stale:false}});
   });
   await page.getByRole('button',{name:'Today',exact:true}).click();
   await expect(page.locator('.grid .card')).toHaveCount(40);
@@ -222,4 +218,63 @@ test('Today renders all 40 cached cards and settings preserve the maximum on rel
   await expect(page.locator('.grid .card')).toHaveCount(40);
   await page.getByRole('button',{name:'Settings',exact:true}).click();
   await expect(page.locator('[data-today-lane="posts"] output')).toHaveText('8');
+});
+
+test('Bright Data token connects locally, loads a completed collection into the flat list, and disconnects', async ({ page }) => {
+  await page.clock.install({time:new Date()});
+  await mockPosts(page);
+  let triggers = 0;
+  await page.route('https://api.brightdata.com/**', async (route) => {
+    const request = route.request();
+    expect(request.headers().authorization).toBe('Bearer local-test-token');
+    const url = request.url();
+    let data;
+    if (url.includes('/trigger?')) {
+      triggers += 1;
+      expect(request.postDataJSON().limit_per_input).toBe(20);
+      expect(request.postDataJSON().input).toHaveLength(7);
+      data = {snapshot_id: 'sd_browser'};
+    } else if (url.includes('/progress/')) data = {status:'ready'};
+    else data = [{url:'https://www.reddit.com/r/OpenAI/comments/abc/release/',title:'Reddit community release',num_upvotes:100,num_comments:30,date_posted:new Date(Date.now()-3600000).toISOString(),description:'Useful release'}];
+    await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
+  });
+  await page.goto('/newtab.html');
+  await expect(page.locator('.grid .card')).toHaveCount(4);
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.getByLabel('Bright Data API token')).toHaveAttribute('type','password');
+  await page.getByLabel('Bright Data API token').fill('local-test-token');
+  await page.getByRole('button',{name:'Save token and load Reddit',exact:true}).click();
+  await expect(page.getByText(/140 \/ 4500 records reserved/)).toBeVisible();
+  await expect(page.getByLabel('Bright Data API token')).toHaveValue('');
+  await page.locator('.drawer-close').click();
+  await page.clock.fastForward(16001);
+  await expect(page.locator('.grid .card')).toHaveCount(5);
+  await expect(page.locator('.card[data-id="reddit:abc"]')).toBeVisible();
+  await page.getByRole('button',{name:'Refresh',exact:true}).click();
+  await expect(page.locator('.grid .card')).toHaveCount(5);
+  expect(triggers).toBe(1);
+  const backup = await page.evaluate(async()=> (await import('/src/services/storage.js')).getDurableData());
+  expect(JSON.stringify(backup)).not.toContain('local-test-token');
+  await page.reload(); await expect(page.locator('.grid .card')).toHaveCount(5);
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await page.getByRole('button',{name:'Disconnect Bright Data',exact:true}).click();
+  await page.locator('.drawer-close').click();
+  await expect(page.locator('.grid .card')).toHaveCount(4);
+  expect(await page.evaluate(()=>localStorage.getItem('scout-lab:bright-data-token'))).toBeNull();
+});
+
+test('two simultaneous Chrome tabs start only one Bright Data collection', async ({page,context}) => {
+  await context.route('https://hn.algolia.com/api/v1/search**', (route)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({hits:hits(),nbPages:1})}));
+  let triggers=0;
+  await context.route('https://api.brightdata.com/**', async(route)=>{
+    if(route.request().url().includes('/trigger?')) { triggers+=1; await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({snapshot_id:'sd_tabs'})}); }
+    else await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({status:'running'})});
+  });
+  await page.goto('/newtab.html'); await expect(page.locator('.grid .card')).toHaveCount(4);
+  await page.evaluate(()=>localStorage.setItem('scout-lab:bright-data-token','local-test-token'));
+  const second=await context.newPage();
+  await Promise.all([page.reload(),second.goto('/newtab.html')]);
+  await expect(page.locator('.grid .card')).toHaveCount(4); await expect(second.locator('.grid .card')).toHaveCount(4);
+  expect(triggers).toBe(1);
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('scout-lab:bright-data-state')).reserved)).toBe(140);
 });

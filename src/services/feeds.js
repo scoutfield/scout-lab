@@ -1,3 +1,4 @@
+import { fetchBrightDataReddit, getBrightDataSettings } from './brightData.js';
 import { getWorkbench, normalizeWorkbenchFilters, POSTS_CACHE_TTL } from '../workbenches.js';
 import { DEFAULT_TODAY_MIX, normalizeTodayMix, normalizeRedditCommunities } from '../settings.js';
 import {
@@ -23,7 +24,6 @@ import {
   isAiPost,
   matchesPostTopic,
   normalizePost,
-  normalizeRedditPost,
   groupModelCards,
   parseArxivFeed,
   parseGithubTrending,
@@ -35,7 +35,7 @@ import { getCache, getStaleCache, setCache } from './storage.js';
 const REQUEST_TIMEOUT = 10_000;
 const pendingRequests = new Map();
 export const GITHUB_TRENDING_SOURCE_REVISION = 'github-trending-v4';
-export const POSTS_SOURCE_REVISION = 'unified-posts-v2';
+export const POSTS_SOURCE_REVISION = 'unified-posts-v3';
 export { DESCRIPTION_REVISION };
 
 const fallbackCards = {
@@ -167,23 +167,11 @@ const fetchHackerNewsPosts = async (filters, now) => {
     candidates: hits.length, limited: pools.some((pool) => pool.limited) };
 };
 
-const fetchRedditPosts = async (filters, now, communities) => {
-  const pools = await Promise.all(['top', 'new'].map(async (order) => {
-    const params = new URLSearchParams({ limit: '100', raw_json: '1', t: filters.time });
-    const data = await fetchJson(`https://www.reddit.com/r/${communities.join('+')}/${order}.json?${params}`, { credentials: 'omit' });
-    if (!Array.isArray(data?.data?.children)) throw new Error('Reddit returned an unexpected response');
-    return data.data.children.map((child) => child.data);
-  }));
-  const hits = [...new Map(pools.flat().map((hit) => [hit?.id, hit])).values()];
-  return { cards: hits.map((hit) => normalizeRedditPost(hit, now.getTime())).filter(Boolean), candidates: hits.length,
-    limited: pools.some((pool) => pool.length >= 100) };
-};
-
 const fetchPosts = async (filters, options) => {
   const now = new Date();
   const sources = ['Hacker News', 'Reddit'];
   const results = await Promise.allSettled([
-    fetchHackerNewsPosts(filters, now), fetchRedditPosts(filters, now, options.redditCommunities),
+    fetchHackerNewsPosts(filters, now), fetchBrightDataReddit(options.redditCommunities),
   ]);
   const successful = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
   if (!successful.length) throw new Error('Hacker News and Reddit could not be loaded.');
@@ -196,10 +184,13 @@ const fetchPosts = async (filters, options) => {
     .sort((left, right) => right.details.hotScore - left.details.hotScore
       || right.details.points - left.details.points
       || Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id)).slice(0, 24);
-  return { cards, status: {
+  const reddit = results[1].status === 'fulfilled' ? results[1].value : null;
+  const redditMessage = results[1].status === 'rejected' ? results[1].reason.message : reddit?.message;
+  return { cards, cacheTtl: reddit?.pending ? 15_000 : POSTS_CACHE_TTL, status: {
+    redditPending: Boolean(reddit?.pending),
     label: failed.length ? `${sources.filter((name) => !failed.includes(name)).join(' · ')} · ${failed.join(' · ')} unavailable` : 'Hacker News · Reddit',
-    stale: false, unavailable: failed.length > 0, sourceRevision: POSTS_SOURCE_REVISION,
-    ...(failed.length ? { message: `${failed.join(' and ')} could not be loaded. Showing available posts.` } : {}),
+    stale: false, unavailable: failed.length > 0 || Boolean(reddit?.unavailable), sourceRevision: POSTS_SOURCE_REVISION,
+    ...(redditMessage ? { message: redditMessage } : failed.length ? { message: `${failed.join(' and ')} could not be loaded. Showing available posts.` } : {}),
     updatedAt: now.toISOString(), candidates: successful.reduce((sum, result) => sum + result.candidates, 0),
     limited: successful.some((result) => result.limited),
   } };
@@ -318,6 +309,7 @@ const fetchToday = async (_filters, options) => {
       label: unavailable ? 'Some sources unavailable' : stale ? 'Mixed live and fallback sources' : 'All sources live',
       stale,
       unavailable,
+      redditPending: Boolean(posts?.status.redditPending),
       ...(missing ? { message: `Today could not fill: ${missing}.` } : {}),
       sources: Object.fromEntries(['code', 'models', 'datasets', 'communityPapers', 'arxiv', ...(postsEnabled ? ['posts'] : [])]
         .map((id, index) => [id, results[index].status])),
@@ -341,7 +333,7 @@ export const fetchSection = async (section, filters, options = {}) => {
   const query = {
     section,
     filters,
-    ...((section === 'posts' || (section === 'today' && normalizedOptions.todayMix.posts > 0)) ? { redditCommunities: normalizedOptions.redditCommunities } : {}),
+    ...((section === 'posts' || (section === 'today' && normalizedOptions.todayMix.posts > 0)) ? { redditCommunities: normalizedOptions.redditCommunities, brightDataConnected: getBrightDataSettings().connected } : {}),
     ...(['code', 'today'].includes(section) ? { sourceRevision: GITHUB_TRENDING_SOURCE_REVISION } : {}),
     ...(['models', 'today'].includes(section) ? { descriptionRevision: DESCRIPTION_REVISION } : {}),
     ...(['posts', 'today'].includes(section) ? { postsRevision: POSTS_SOURCE_REVISION } : {}),

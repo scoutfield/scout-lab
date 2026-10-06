@@ -1,3 +1,4 @@
+import { getBrightDataSettings } from '../services/brightData.js';
 import { TODAY_LANES } from '../settings.js';
 import { escapeHtml } from './render.js';
 import { SECTION_ORDER, WORKBENCHES } from '../workbenches.js';
@@ -105,6 +106,7 @@ export const renderSettingsDrawer = ({
 }) => {
   if (!open) return '';
   const { preferences, filterDefaults } = settings;
+  const brightData = getBrightDataSettings();
   const total = TODAY_LANES.reduce((sum, lane) => sum + preferences.todayMix[lane], 0);
 
   return `
@@ -152,6 +154,16 @@ export const renderSettingsDrawer = ({
           <section class="settings-section" aria-labelledby="posts-settings-heading">
             <h3 id="posts-settings-heading">Posts</h3>
             <p class="settings-help">Defaults for the Posts feed and its cards in Today.</p>
+            <p class="settings-help">Reddit via Bright Data: ${brightData.connected ? 'Token saved' : 'Not connected'}. ${brightData.reserved} / ${brightData.limit} records reserved this month.${brightData.pending ? ' Collection running.' : ''}</p>
+            <label class="settings-field">
+              <span class="settings-label">Bright Data API token</span>
+              <input type="password" data-bright-data-token aria-label="Bright Data API token" autocomplete="off" placeholder="Paste your API token">
+            </label>
+            <div class="settings-actions">
+              <button type="button" class="settings-secondary" data-command="connect-bright-data">Save token and load Reddit</button>
+              ${brightData.connected ? '<button type="button" class="settings-secondary" data-command="disconnect-bright-data">Disconnect Bright Data</button>' : ''}
+            </div>
+            <p class="settings-help"><a href="https://brightdata.com/cp/setting/users" target="_blank" rel="noopener noreferrer">Get your API token</a>. Token stays on this device and is excluded from backups. One collection daily, up to 140 posts total. Keep your Bright Data account unfunded to prevent charges. Other apps share its free allowance.</p>
             <label class="settings-field">
               <span class="settings-label">Subreddits</span>
               <textarea data-reddit-communities aria-label="Subreddits" rows="3">${escapeHtml(preferences.redditCommunities.join(', '))}</textarea>

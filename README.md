@@ -313,3 +313,9 @@ Use [GitHub Issues](https://github.com/heshaojian/scout-lab/issues) for bugs and
 Scout Lab is available under the [MIT License](./LICENSE).
 
 Posts combines Hacker News and public Reddit discussions in a single list. Settings supports up to 20 custom subreddit names, separated by commas or new lines. Reddit requests omit credentials. Source outages leave available results visible.
+
+### Bright Data Reddit connection
+
+Settings → Posts accepts a Bright Data API token, saved locally and excluded from backups. Reddit discovery runs at most once per 24 hours while Scout Lab is open. An unfinished collection resumes in later new tabs; the selected feed checks running jobs automatically. Filters and Refresh reuse the daily collection. Requests use Hot sorting, at most 20 posts per subreddit and 140 total per collection, with a local 4,500-record monthly reservation cap. For longer subreddit lists, each gets fewer posts. Changes to the list take effect at the next collection.
+
+The local cap only controls Scout Lab on this browser profile. Other devices and apps share the account allowance. Keep the Bright Data account unfunded for its provider-side hard stop. Clearing extension storage also clears local usage accounting. Tokens never enter caches, snapshots, or exported backups. Disconnect removes the token.

@@ -29,7 +29,7 @@ describe('unified Posts feed', () => {
     vi.stubGlobal('fetch', mock);
     const result = await fetchSection('posts', createDefaultFilters().posts);
     expect(result.cards.map(({ id }) => id)).toEqual(['hn:fresh', 'hn:text', 'hn:old']);
-    expect(mock).toHaveBeenCalledTimes(5);
+    expect(mock).toHaveBeenCalledTimes(3);
     expect(result.status).toMatchObject({ sourceRevision: POSTS_SOURCE_REVISION, stale: false, candidates: 203 });
   });
 
@@ -59,7 +59,7 @@ describe('unified Posts feed', () => {
     }));
     vi.stubGlobal('fetch', mock);
     const result = await fetchSection('posts', createDefaultFilters().posts);
-    expect(mock).toHaveBeenCalledTimes(12);
+    expect(mock).toHaveBeenCalledTimes(10);
     expect(result.status.limited).toBe(true);
     expect(result.cards).toEqual([]);
   });
@@ -74,13 +74,13 @@ describe('unified Posts feed', () => {
     expect((await fetchSection('posts', filters)).cached).toBe(true);
     vi.advanceTimersByTime(2);
     expect((await fetchSection('posts', filters)).cached).toBe(false);
-    expect(mock).toHaveBeenCalledTimes(8);
+    expect(mock).toHaveBeenCalledTimes(4);
   });
 
   it('uses an expired matching Posts cache on outage, otherwise shows the source fallback', async () => {
     const filters = createDefaultFilters().posts;
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
-    setCache({ section: 'posts', filters, postsRevision: POSTS_SOURCE_REVISION, redditCommunities: [...DEFAULT_REDDIT_COMMUNITIES] }, [{ id: 'hn:saved' }], -1, {
+    setCache({ section: 'posts', filters, postsRevision: POSTS_SOURCE_REVISION, redditCommunities: [...DEFAULT_REDDIT_COMMUNITIES], brightDataConnected: false }, [{ id: 'hn:saved' }], -1, {
       status: { label: 'Hacker News', sourceRevision: POSTS_SOURCE_REVISION },
     });
     const saved = await fetchSection('posts', filters);
@@ -141,37 +141,6 @@ describe('Posts in Today', () => {
   });
 });
 
-const reddit = (id, subreddit = 'OpenAI', title = 'Community release') => ({
-  id, subreddit, title, permalink: `/r/${subreddit}/comments/${id}/release/`, score: 100, num_comments: 10,
-  created_utc: Math.floor(Date.now() / 1000) - 3600, author: 'user', selftext: 'Details', is_self: true,
-});
-it('merges and deduplicates Reddit with HN and invalidates Posts and Today for subreddit changes', async () => {
-  const urls = [];
-  vi.stubGlobal('fetch', vi.fn(async (url) => {
-    urls.push(String(url));
-    if (String(url).includes('reddit.com')) return response({ data: { children: [{data: reddit('abc')}, {data: reddit('abc')}] } });
-    return sourceMock([hit('hn')])(url);
-  }));
-  const filters = createDefaultFilters();
-  const options = { allFilters: filters, todayMix: postsOnly, redditCommunities: ['OpenAI'] };
-  const posts = await fetchSection('posts', filters.posts, options);
-  expect(posts.cards.map((card) => card.id)).toEqual(['reddit:abc', 'hn:hn']);
-  expect(posts.status.unavailable).toBe(false);
-  expect((await fetchSection('today', {}, options)).cards[0].source).toBe('reddit');
-  const changed = {...options, redditCommunities: ['LocalLLaMA']};
-  expect((await fetchSection('today', {}, changed)).cached).toBe(false);
-  expect(urls.some((url) => url.includes('/r/LocalLLaMA/'))).toBe(true);
-});
-it('keeps Reddit cards available when HN fails and excludes unsafe or out-of-range Reddit posts', async () => {
-  vi.stubGlobal('fetch', vi.fn(async (url) => {
-    if (String(url).includes('hn.algolia')) throw new Error('offline');
-    return response({data: {children: [reddit('abc'), {...reddit('bad'), permalink: '//evil.com'},
-      {...reddit('old'), created_utc: 1}, {...reddit('pin'), stickied: true}].map((data) => ({data}))}});
-  }));
-  const result = await fetchSection('posts', createDefaultFilters().posts);
-  expect(result.cards.map((card) => card.id)).toEqual(['reddit:abc']);
-  expect(result.status.label).toContain('Hacker News unavailable');
-});
 it('composes all 40 Today cards from five eight-card lanes', () => {
   const cards = (name) => Array.from({length: 8}, (_, i) => ({id: `${name}:${i}`}));
   const result = composeTodayCards({code: cards('c'), models: cards('m'), datasets: cards('d'), community: cards('p'), arxiv: cards('a'), posts: cards('r')},

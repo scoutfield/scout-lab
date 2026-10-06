@@ -101,7 +101,8 @@
   font-weight: 760;
 }
 
-.settings-field select {
+.settings-field select,
+.settings-field input {
   width: 100%;
   height: 36px;
   border: 1px solid var(--line);

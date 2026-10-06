@@ -15,7 +15,8 @@
     "https://huggingface.co/*": "Retrieves public model, dataset, and Daily Papers metadata displayed in Scout Lab.",
     "https://export.arxiv.org/*": "Retrieves public arXiv Atom data displayed in the Papers workbench.",
     "https://hn.algolia.com/*": "Retrieves public Hacker News AI posts displayed in the Posts workbench.",
-    "https://www.reddit.com/*": "Fetch public discussions from the subreddits selected in Settings."
+    "https://www.reddit.com/*": "Fetch public discussions from the subreddits selected in Settings.",
+    "https://api.brightdata.com/*": "Collect public Reddit posts using the user-configured Bright Data API token."
   },
   "distribution": {
     "visibility": "public",
