@@ -146,12 +146,18 @@ export const renderSettingsDrawer = ({
                 </div>
               `).join('')}
             </div>
-            <p class="settings-help">Choose 1-12 cards total, with up to 4 from each source.</p>
+            <p class="settings-help">Choose 1-40 cards total, with up to 8 from each source.</p>
           </section>
 
           <section class="settings-section" aria-labelledby="posts-settings-heading">
             <h3 id="posts-settings-heading">Posts</h3>
             <p class="settings-help">Defaults for the Posts feed and its cards in Today.</p>
+            <label class="settings-field">
+              <span class="settings-label">Subreddits</span>
+              <textarea data-reddit-communities aria-label="Subreddits" rows="3">${escapeHtml(preferences.redditCommunities.join(', '))}</textarea>
+            </label>
+            <p class="settings-help">Up to 20 names, separated by commas or new lines. Leave empty to restore defaults.</p>
+            <button type="button" class="settings-secondary" data-command="save-subreddits">Save subreddits</button>
             ${WORKBENCHES.posts.controls.map((control) => selectPostDefault(control, filterDefaults.posts[control.id])).join('')}
           </section>
 

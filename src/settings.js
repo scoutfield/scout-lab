@@ -1,7 +1,20 @@
 import { createDefaultFilters, normalizeWorkbenchFilters, SECTION_ORDER } from './workbenches.js';
 
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 export const TODAY_LANES = ['code', 'models', 'datasets', 'papers', 'posts'];
+
+export const DEFAULT_REDDIT_COMMUNITIES = Object.freeze(['LocalLLaMA', 'MachineLearning', 'artificial', 'OpenAI', 'ClaudeAI', 'LLMDevs', 'StableDiffusion']);
+export const parseRedditCommunities = (value) => {
+  const names = (Array.isArray(value) ? value : String(value || '').split(/[\s,+]+/))
+    .map((name) => String(name).trim().replace(/^\/?r\//i, '')).filter(Boolean);
+  if (names.some((name) => !/^[A-Za-z0-9_]{2,21}$/.test(name))) throw new Error('Use subreddit names with 2-21 letters, numbers, or underscores.');
+  const unique = names.filter((name, index) => names.findIndex((other) => other.toLowerCase() === name.toLowerCase()) === index);
+  if (unique.length > 20) throw new Error('Choose up to 20 subreddits.');
+  return unique.length ? unique : [...DEFAULT_REDDIT_COMMUNITIES];
+};
+export const normalizeRedditCommunities = (value) => {
+  try { return parseRedditCommunities(value); } catch { return [...DEFAULT_REDDIT_COMMUNITIES]; }
+};
 
 const THEMES = new Set(['system', 'light', 'dark']);
 const TEXT_SIZES = new Set(['standard', 'large']);
@@ -24,6 +37,7 @@ export const DEFAULT_PREFERENCES = Object.freeze({
   startupSection: 'last-used',
   openLinks: 'foreground',
   todayMix: DEFAULT_TODAY_MIX,
+  redditCommunities: DEFAULT_REDDIT_COMMUNITIES,
 });
 
 const normalizeFilterMap = (stored = {}, legacyTopic = 'all') => {
@@ -37,9 +51,9 @@ const normalizeFilterMap = (stored = {}, legacyTopic = 'all') => {
 export const isValidTodayMix = (mix) => {
   if (!mix || typeof mix !== 'object') return false;
   const values = TODAY_LANES.map((lane) => mix[lane]);
-  if (values.some((value) => !Number.isInteger(value) || value < 0 || value > 4)) return false;
+  if (values.some((value) => !Number.isInteger(value) || value < 0 || value > 8)) return false;
   const total = values.reduce((sum, value) => sum + value, 0);
-  return total >= 1 && total <= 12;
+  return total >= 1 && total <= 40;
 };
 
 export const normalizeTodayMix = (value) => {
@@ -51,7 +65,7 @@ export const normalizeTodayMix = (value) => {
   if (value && !Object.hasOwn(value, 'posts')) {
     const existingTotal = TODAY_LANES.filter((lane) => lane !== 'posts')
       .reduce((total, lane) => total + candidate[lane], 0);
-    candidate.posts = Math.max(0, Math.min(DEFAULT_TODAY_MIX.posts, 12 - existingTotal));
+    candidate.posts = Math.max(0, Math.min(DEFAULT_TODAY_MIX.posts, 40 - existingTotal));
   }
   return isValidTodayMix(candidate) ? candidate : { ...DEFAULT_TODAY_MIX };
 };
@@ -65,6 +79,7 @@ export const normalizePreferences = (value = {}) => ({
     : DEFAULT_PREFERENCES.startupSection,
   openLinks: LINK_BEHAVIORS.has(value?.openLinks) ? value.openLinks : DEFAULT_PREFERENCES.openLinks,
   todayMix: normalizeTodayMix(value?.todayMix),
+  redditCommunities: normalizeRedditCommunities(value?.redditCommunities),
 });
 
 export const normalizeSettings = (stored = {}) => ({

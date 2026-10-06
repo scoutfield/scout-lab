@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ context }) => {
+  await context.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { children: [] } }) }));
+});
+
 test('startup wipes pre-schema Scout Lab data before rendering defaults', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.clear();

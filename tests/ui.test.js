@@ -184,7 +184,7 @@ describe('shared workbench renderer', () => {
     expect([...document.querySelector('[aria-label="Content type"]').options].map(({ value }) => value))
       .toEqual(['all', 'Code', 'Model', 'Dataset', 'Paper', 'Post']);
     expect([...document.querySelector('[aria-label="Source"]').options].map(({ value }) => value))
-      .toEqual(['all', 'github', 'huggingface', 'arxiv', 'hackernews']);
+      .toEqual(['all', 'github', 'huggingface', 'arxiv', 'hackernews', 'reddit']);
     expect([...document.querySelector('[aria-label="Sort"]').options].map(({ value }) => value))
       .toEqual(['updated', 'saved', 'title']);
   });

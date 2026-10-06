@@ -367,7 +367,7 @@ export const WORKBENCHES = {
     id: 'posts',
     label: 'Posts',
     title: 'Posts',
-    subtitle: 'AI discussions from Hacker News, ranked by points and recency.',
+    subtitle: 'Discussions from Hacker News and your subreddits, ranked by points and recency.',
     defaults: { time: 'week', topic: 'all', minPoints: '0', minComments: '0' },
     controls: [
       control('time', 'Time range', [
@@ -403,7 +403,7 @@ export const WORKBENCHES = {
       ]),
       control('source', 'Source', [
         option('all', 'All sources'), option('github', 'GitHub'), option('huggingface', 'Hugging Face'),
-        option('arxiv', 'arXiv'), option('hackernews', 'Hacker News'),
+        option('arxiv', 'arXiv'), option('hackernews', 'Hacker News'), option('reddit', 'Reddit'),
       ]),
       control('sort', 'Sort', [
         option('updated', 'Recently updated'), option('saved', 'Recently saved'), option('title', 'Title'),

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_PREFERENCES,
+  DEFAULT_REDDIT_COMMUNITIES,
+  parseRedditCommunities,
   isValidTodayMix,
   normalizePreferences,
   normalizeSettings,
@@ -16,7 +18,7 @@ describe('settings schema', () => {
       filters: { code: { language: 'python' } },
     });
 
-    expect(settings.version).toBe(4);
+    expect(settings.version).toBe(5);
     expect(settings.selectedSection).toBe('models');
     expect(settings.filters.code).toEqual({ time: 'day', spokenLanguage: 'all', language: 'python' });
     expect(settings.filters.models.topic).toBe('rag');
@@ -52,6 +54,7 @@ describe('settings schema', () => {
       density: 'comfortable',
       startupSection: 'papers',
       openLinks: 'foreground',
+      redditCommunities: [...DEFAULT_REDDIT_COMMUNITIES],
       todayMix: { code: 4, models: 0, datasets: 0, papers: 0, posts: 2 },
     });
   });
@@ -64,8 +67,8 @@ describe('settings schema', () => {
   it('validates Today lane ranges and combined totals', () => {
     expect(isValidTodayMix({ code: 4, models: 4, datasets: 0, papers: 4, posts: 0 })).toBe(true);
     expect(isValidTodayMix({ code: 0, models: 0, datasets: 0, papers: 0, posts: 0 })).toBe(false);
-    expect(isValidTodayMix({ code: 5, models: 0, datasets: 0, papers: 0, posts: 0 })).toBe(false);
-    expect(isValidTodayMix({ code: 4, models: 4, datasets: 4, papers: 1, posts: 0 })).toBe(false);
+    expect(isValidTodayMix({ code: 9, models: 0, datasets: 0, papers: 0, posts: 0 })).toBe(false);
+    expect(isValidTodayMix({ code: 8, models: 8, datasets: 8, papers: 8, posts: 8 })).toBe(true);
   });
 
   it('migrates Posts current filters and saved defaults without keeping old modes', () => {
@@ -82,8 +85,8 @@ describe('settings schema', () => {
   it('adds Posts to legacy Today queues only within their remaining capacity', () => {
     expect(normalizePreferences().todayMix).toEqual({ code: 2, models: 1, datasets: 1, papers: 2, posts: 2 });
     expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 3 } }).todayMix)
-      .toEqual({ code: 4, models: 4, datasets: 0, papers: 3, posts: 1 });
-    expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 4 } }).todayMix.posts).toBe(0);
+      .toEqual({ code: 4, models: 4, datasets: 0, papers: 3, posts: 2 });
+    expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 4 } }).todayMix.posts).toBe(2);
     expect(normalizePreferences({ todayMix: { code: 2, models: 1, datasets: 1, papers: 2, posts: 0 } }).todayMix.posts).toBe(0);
   });
 
@@ -94,4 +97,12 @@ describe('settings schema', () => {
       preferences: { startupSection: 'today' },
     }))).toBe('today');
   });
+});
+
+it('normalizes custom subreddits, rejects malformed input, and restores blank defaults', () => {
+  expect(parseRedditCommunities('r/LocalLLaMA, /r/OpenAI\nlocalllama')).toEqual(['LocalLLaMA', 'OpenAI']);
+  expect(parseRedditCommunities('')).toEqual(DEFAULT_REDDIT_COMMUNITIES);
+  expect(() => parseRedditCommunities('https://reddit.com/r/OpenAI')).toThrow();
+  expect(() => parseRedditCommunities(Array.from({length: 21}, (_, i) => `community${i}`))).toThrow('20');
+  expect(normalizePreferences({ redditCommunities: ['OpenAI'] }).redditCommunities).toEqual(['OpenAI']);
 });

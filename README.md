@@ -31,7 +31,7 @@ Scout Lab is intentionally not a general search page, bookmark manager, social f
 
 ### Today
 
-Today composes a concise briefing from the current source filters. The default mix is two repositories, one model, one dataset, two papers, and two Posts. You can configure 1-12 cards in Settings, with up to four cards from each source.
+Today composes a concise briefing from the current source filters. The default mix is two repositories, one model, one dataset, two papers, and two Posts. You can configure 1-40 cards in Settings, with up to eight cards from each source.
 
 Today has Search and Refresh but no topic or filter bar. Detailed exploration belongs in the source workbenches.
 
@@ -149,7 +149,7 @@ Settings include:
 - **Density:** Comfortable or Compact
 - **Start on:** the last-used or a fixed workbench
 - **Open links:** foreground or background tabs
-- **Today mix:** 1-12 cards across Code, Models, Datasets, Papers, and Posts
+- **Today mix:** 1-40 cards across Code, Models, Datasets, Papers, and Posts
 - **Posts defaults:** time range, AI topic, minimum points, and minimum comments
 - **Workbench defaults:** save and restore source-filter defaults independently
 
@@ -311,3 +311,5 @@ Use [GitHub Issues](https://github.com/heshaojian/scout-lab/issues) for bugs and
 ## License
 
 Scout Lab is available under the [MIT License](./LICENSE).
+
+Posts combines Hacker News and public Reddit discussions in a single list. Settings supports up to 20 custom subreddit names, separated by commas or new lines. Reddit requests omit credentials. Source outages leave available results visible.

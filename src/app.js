@@ -1,3 +1,4 @@
+import { parseRedditCommunities } from './settings.js';
 import { connectArchiveFolder, getArchiveStatus, writeDailyArchive } from './services/archive.js';
 import { buildDailyArchive } from './services/archiveFormat.js';
 import {
@@ -179,7 +180,7 @@ const statusSourceHtml = () => (
 
 const cardsHtml = (filters, cards) => {
   if (cards.length) {
-    return cards.slice(0, 24).map((card) => renderCard(card, {
+    return cards.slice(0, state.selectedSection === 'today' ? 40 : 24).map((card) => renderCard(card, {
       user: state.userState,
       commentingId: state.commentingId,
     })).join('');
@@ -332,6 +333,7 @@ const load = async ({ force = false, clear = false, resultPromise = null } = {})
     force,
     allFilters: state.filters,
     todayMix: state.settings.preferences.todayMix,
+    redditCommunities: state.settings.preferences.redditCommunities,
     userState: state.userState,
   }));
   if (state.requestId !== requestId) return;
@@ -428,7 +430,8 @@ const savePreference = async (patch, focusSelector) => {
   applyAppearance(preferences);
   setState({ settings: nextSettings, filters: nextSettings.filters, settingsError: '', settingsNotice: 'Saved.' });
   render();
-  if (state.selectedSection === 'today' && patch.todayMix) await load({ force: true, clear: true });
+  if (state.selectedSection === 'today' && (patch.todayMix || patch.redditCommunities)) await load({ force: true, clear: true });
+  if (state.selectedSection === 'posts' && patch.redditCommunities) await load({ clear: true });
   focusAfterRender(focusSelector);
 };
 
@@ -502,6 +505,18 @@ const applyPendingImport = async () => {
 };
 
 const handleCommand = async (command) => {
+  if (command === 'save-subreddits') {
+    try {
+      const redditCommunities = parseRedditCommunities(document.querySelector('[data-reddit-communities]').value);
+      await savePreference({ redditCommunities }, '[data-command="save-subreddits"]');
+    } catch (error) {
+      setState({ settingsError: error.message, settingsNotice: '' });
+      const message = document.querySelector('.settings-body');
+      message.querySelector('[data-subreddit-error]')?.remove();
+      message.insertAdjacentHTML('afterbegin', `<div data-subreddit-error class="settings-message error" role="alert">${escapeHtml(error.message)}</div>`);
+    }
+    return;
+  }
   if (command === 'refresh') {
     await load({ force: true });
     return;
@@ -625,7 +640,7 @@ const onClick = async (event) => {
       const current = state.settings.preferences.todayMix;
       const todayMix = { ...current, [lane]: current[lane] + step };
       if (!isValidTodayMix(todayMix)) {
-        setState({ settingsError: 'Today needs 1-12 cards total, with 0-4 from each source.', settingsNotice: '' });
+        setState({ settingsError: 'Today needs 1-40 cards total, with 0-8 from each source.', settingsNotice: '' });
         render();
         focusAfterRender(`[data-lane="${lane}"][data-step="${step}"]`);
         return;
@@ -775,6 +790,7 @@ const boot = async () => {
   const warmup = createStartupWarmup({
     filters: state.filters,
     todayMix: state.settings.preferences.todayMix,
+    redditCommunities: state.settings.preferences.redditCommunities,
     userState: state.userState,
   });
 

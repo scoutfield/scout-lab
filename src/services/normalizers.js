@@ -482,3 +482,29 @@ export const normalizePost = (hit, now = Date.now()) => {
     },
   };
 };
+
+export const normalizeRedditPost = (data, now = Date.now()) => {
+  if (!data?.id || !data.title || !/^\/r\/[A-Za-z0-9_]+\/comments\/[A-Za-z0-9]+(?:\/|$)/.test(data.permalink || '')
+    || data.stickied || data.over_18 || data.removed_by_category) return null;
+  const points = Number(data.score) || 0;
+  const comments = Number(data.num_comments) || 0;
+  const timestamp = Number(data.created_utc) * 1000;
+  if (!Number.isFinite(timestamp) || !Number.isFinite(new Date(timestamp).getTime())) return null;
+  const publishedAt = new Date(timestamp).toISOString();
+  const article = validateSourceUrl(data.url, 'web');
+  const domain = hostOf(article);
+  const card = baseCard({
+    id: `reddit:${data.id}`, source: 'reddit', section: 'posts', type: 'Post',
+    title: data.title, url: `https://www.reddit.com${data.permalink}`,
+    summary: readableDescription(data.selftext || '') || `Discussion in r/${data.subreddit}.`,
+    tags: ['Reddit', `r/${data.subreddit}`], owner: data.author || '', publishedAt,
+  });
+  return { ...card,
+    metricLabel: 'Reddit score and comments', metricValue: `${compactNumber(points)} pts · ${compactNumber(comments)} comments`,
+    metrics: [metric('points', 'Score', points, 'Reddit score'), metric('comments', 'Comments', comments, 'Reddit comments')],
+    openLabel: 'Discuss', links: article && !data.is_self && !/(^|\.)(reddit\.com|redd\.it)$/.test(domain)
+      ? [{ id: 'article', label: 'Article', url: article, source: 'web' }] : [],
+    secondary: { left: `r/${data.subreddit} · ${data.author || ''}`, right: `Posted ${formatDate(publishedAt)}` },
+    details: { points, comments, domain, subreddit: data.subreddit, publishedAt, hotScore: postHotScore(points, publishedAt, now) },
+  };
+};

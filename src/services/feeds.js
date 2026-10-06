@@ -1,5 +1,5 @@
 import { getWorkbench, normalizeWorkbenchFilters, POSTS_CACHE_TTL } from '../workbenches.js';
-import { DEFAULT_TODAY_MIX, normalizeTodayMix } from '../settings.js';
+import { DEFAULT_TODAY_MIX, normalizeTodayMix, normalizeRedditCommunities } from '../settings.js';
 import {
   buildArxivRequest,
   buildCommunityPapersUrl,
@@ -23,6 +23,7 @@ import {
   isAiPost,
   matchesPostTopic,
   normalizePost,
+  normalizeRedditPost,
   groupModelCards,
   parseArxivFeed,
   parseGithubTrending,
@@ -34,7 +35,7 @@ import { getCache, getStaleCache, setCache } from './storage.js';
 const REQUEST_TIMEOUT = 10_000;
 const pendingRequests = new Map();
 export const GITHUB_TRENDING_SOURCE_REVISION = 'github-trending-v4';
-export const POSTS_SOURCE_REVISION = 'unified-posts-v1';
+export const POSTS_SOURCE_REVISION = 'unified-posts-v2';
 export { DESCRIPTION_REVISION };
 
 const fallbackCards = {
@@ -158,28 +159,50 @@ const fetchPostPool = async (filters, now, order) => {
   return { hits, limited };
 };
 
-const fetchPosts = async (filters) => {
-  const now = new Date();
+const fetchHackerNewsPosts = async (filters, now) => {
   const pools = await Promise.all(['points', 'recent'].map((order) => fetchPostPool(filters, now, order)));
   const hits = [...new Map(pools.flatMap((pool) => pool.hits)
     .filter((hit) => hit.title && hit.objectID).map((hit) => [`${hit.objectID}`, hit])).values()];
+  return { cards: hits.map((hit) => normalizePost(hit, now.getTime())).filter(isAiPost),
+    candidates: hits.length, limited: pools.some((pool) => pool.limited) };
+};
+
+const fetchRedditPosts = async (filters, now, communities) => {
+  const pools = await Promise.all(['top', 'new'].map(async (order) => {
+    const params = new URLSearchParams({ limit: '100', raw_json: '1', t: filters.time });
+    const data = await fetchJson(`https://www.reddit.com/r/${communities.join('+')}/${order}.json?${params}`, { credentials: 'omit' });
+    if (!Array.isArray(data?.data?.children)) throw new Error('Reddit returned an unexpected response');
+    return data.data.children.map((child) => child.data);
+  }));
+  const hits = [...new Map(pools.flat().map((hit) => [hit?.id, hit])).values()];
+  return { cards: hits.map((hit) => normalizeRedditPost(hit, now.getTime())).filter(Boolean), candidates: hits.length,
+    limited: pools.some((pool) => pool.length >= 100) };
+};
+
+const fetchPosts = async (filters, options) => {
+  const now = new Date();
+  const sources = ['Hacker News', 'Reddit'];
+  const results = await Promise.allSettled([
+    fetchHackerNewsPosts(filters, now), fetchRedditPosts(filters, now, options.redditCommunities),
+  ]);
+  const successful = results.filter((result) => result.status === 'fulfilled').map((result) => result.value);
+  if (!successful.length) throw new Error('Hacker News and Reddit could not be loaded.');
+  const failed = results.flatMap((result, index) => result.status === 'rejected' ? [sources[index]] : []);
   const cutoff = now.getTime() - (POST_RANGE_DAYS[filters.time] || 7) * 86400_000;
-  const cards = hits.map((hit) => normalizePost(hit, now.getTime()))
+  const cards = successful.flatMap((result) => result.cards)
     .filter((card) => Date.parse(card.publishedAt) > cutoff && Date.parse(card.publishedAt) <= now.getTime()
       && card.details.points >= Number(filters.minPoints) && card.details.comments >= Number(filters.minComments)
-      && isAiPost(card) && matchesPostTopic(card, filters.topic))
+      && matchesPostTopic(card, filters.topic))
     .sort((left, right) => right.details.hotScore - left.details.hotScore
       || right.details.points - left.details.points
-      || Date.parse(right.publishedAt) - Date.parse(left.publishedAt)
-      || left.id.localeCompare(right.id))
-    .slice(0, 24);
-  return {
-    cards,
-    status: {
-      label: 'Hacker News', stale: false, sourceRevision: POSTS_SOURCE_REVISION,
-      updatedAt: now.toISOString(), candidates: hits.length, limited: pools.some((pool) => pool.limited),
-    },
-  };
+      || Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id)).slice(0, 24);
+  return { cards, status: {
+    label: failed.length ? `${sources.filter((name) => !failed.includes(name)).join(' · ')} · ${failed.join(' · ')} unavailable` : 'Hacker News · Reddit',
+    stale: false, unavailable: failed.length > 0, sourceRevision: POSTS_SOURCE_REVISION,
+    ...(failed.length ? { message: `${failed.join(' and ')} could not be loaded. Showing available posts.` } : {}),
+    updatedAt: now.toISOString(), candidates: successful.reduce((sum, result) => sum + result.candidates, 0),
+    limited: successful.some((result) => result.limited),
+  } };
 };
 
 const fetchPapers = async (filters) => {
@@ -203,12 +226,12 @@ const fetchPapers = async (filters) => {
   return { cards, status: { label: 'Hugging Face Daily Papers', stale: false } };
 };
 
-const liveFetcher = (section, filters) => {
+const liveFetcher = (section, filters, options) => {
   if (section === 'code') return fetchCode(filters);
   if (section === 'models') return fetchModels(filters);
   if (section === 'datasets') return fetchDatasets(filters);
   if (section === 'papers') return fetchPapers(filters);
-  if (section === 'posts') return fetchPosts(filters);
+  if (section === 'posts') return fetchPosts(filters, options);
   throw new Error(`Unknown workbench: ${section}`);
 };
 
@@ -310,6 +333,7 @@ export const fetchSection = async (section, filters, options = {}) => {
     userState: {},
     ...options,
   };
+  normalizedOptions.redditCommunities = normalizeRedditCommunities(normalizedOptions.redditCommunities);
   normalizedOptions.todayMix = normalizeTodayMix(normalizedOptions.todayMix);
   const hiddenIds = section === 'today'
     ? Object.entries(normalizedOptions.userState).filter(([, value]) => value.hidden).map(([id]) => id).sort()
@@ -317,6 +341,7 @@ export const fetchSection = async (section, filters, options = {}) => {
   const query = {
     section,
     filters,
+    ...((section === 'posts' || (section === 'today' && normalizedOptions.todayMix.posts > 0)) ? { redditCommunities: normalizedOptions.redditCommunities } : {}),
     ...(['code', 'today'].includes(section) ? { sourceRevision: GITHUB_TRENDING_SOURCE_REVISION } : {}),
     ...(['models', 'today'].includes(section) ? { descriptionRevision: DESCRIPTION_REVISION } : {}),
     ...(['posts', 'today'].includes(section) ? { postsRevision: POSTS_SOURCE_REVISION } : {}),

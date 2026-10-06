@@ -333,3 +333,5 @@
 :root[data-text-size="large"] .import-review strong {
   font-size: 13px;
 }
+
+.settings-field textarea { width: 100%; box-sizing: border-box; font: inherit; color: inherit; background: var(--white); border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical; }

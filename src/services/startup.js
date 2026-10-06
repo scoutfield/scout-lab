@@ -7,10 +7,11 @@ export const createStartupWarmup = ({
   filters,
   todayMix = DEFAULT_TODAY_MIX,
   userState = {},
+  redditCommunities,
 }, fetcher = fetchSection) => {
   const allFilters = Object.fromEntries(Object.entries(filters)
     .map(([section, values]) => [section, { ...values }]));
-  const options = { force: false, allFilters, todayMix: { ...todayMix }, userState: { ...userState } };
+  const options = { redditCommunities, force: false, allFilters, todayMix: { ...todayMix }, userState: { ...userState } };
   const requests = Object.fromEntries(STARTUP_SECTIONS.map((section) => [
     section,
     fetcher(section, { ...allFilters[section] }, options),

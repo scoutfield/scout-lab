@@ -266,7 +266,7 @@ describe('feed integration', () => {
 
     expect(result.cards).toHaveLength(8);
     expect(result.cards.map((card) => card.type)).toEqual(['Code', 'Code', 'Model', 'Dataset', 'Paper', 'Paper', 'Post', 'Post']);
-    expect(result.status).toMatchObject({ label: 'All sources live', stale: false });
+    expect(result.status).toMatchObject({ label: 'Some sources unavailable', stale: false });
   });
 
   it('ignores legacy Code topics and preserves GitHub Trending order in Today', async () => {

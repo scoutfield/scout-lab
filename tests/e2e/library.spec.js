@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ context }) => {
+  await context.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { children: [] } }) }));
+});
+
 const models = [
   {
     id: 'Qwen/Qwen-7B', pipeline_tag: 'text-generation', tags: ['transformers'],

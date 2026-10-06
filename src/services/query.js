@@ -56,6 +56,7 @@ const SOURCE_HOSTS = {
   github: new Set(['github.com']),
   huggingface: new Set(['huggingface.co']),
   arxiv: new Set(['arxiv.org', 'export.arxiv.org']),
+  reddit: new Set(['www.reddit.com', 'reddit.com', 'old.reddit.com']),
   hackernews: new Set(['news.ycombinator.com']),
   // Outbound article links: any https host, never credentials.
   web: null,

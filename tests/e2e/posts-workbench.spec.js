@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+test.beforeEach(async ({ context }) => {
+  await context.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { children: [] } }) }));
+});
+
 const iso = (hours) => new Date(Date.now() - hours * 3600_000).toISOString();
 const hits = () => [
   { objectID: '1', title: 'Small but fresh LLM tool', url: 'https://example.com/fresh', points: 40, num_comments: 3, author: 'ann', created_at: iso(1) },
@@ -167,8 +171,55 @@ test('Posts and Settings fit a mobile viewport', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test('Posts shows a labeled fallback when Hacker News is unreachable', async ({ page }) => {
+test('Posts shows a labeled fallback when both sources are unreachable', async ({ page }) => {
   await page.route('https://hn.algolia.com/api/v1/search**', (route) => route.fulfill({ status: 503, body: 'down' }));
+  await page.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 503, body: 'down' }));
   await page.goto('/newtab.html');
   await expect(page.getByRole('heading', { name: 'AI posts on Hacker News' })).toBeVisible();
+});
+
+test('custom subreddits persist, combine with HN, and validate without losing input', async ({ page }) => {
+  await mockPosts(page);
+  await page.route('https://www.reddit.com/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({data: {children: [{data: {
+    id: 'abc', title: 'Community release', subreddit: 'OpenAI', permalink: '/r/OpenAI/comments/abc/release/',
+    score: 100, num_comments: 30, created_utc: Math.floor(Date.now()/1000)-3600, is_self: true,
+  }}]}}) }));
+  await page.goto('/newtab.html');
+  await expect(page.locator('.grid .card')).toHaveCount(5);
+  await page.getByRole('button', {name: 'Settings', exact: true}).click();
+  await page.getByLabel('Subreddits', {exact: true}).fill('OpenAI, /r/LocalLLaMA');
+  await page.getByRole('button', {name: 'Save subreddits', exact: true}).click();
+  await expect(page.getByLabel('Subreddits', {exact: true})).toHaveValue('OpenAI, LocalLLaMA');
+  await page.getByLabel('Subreddits', {exact: true}).fill('bad/name');
+  await page.getByRole('button', {name: 'Save subreddits', exact: true}).click();
+  await expect(page.getByRole('alert')).toContainText('2-21');
+  await expect(page.getByLabel('Subreddits', {exact: true})).toHaveValue('bad/name');
+  await page.reload();
+  await page.getByRole('button', {name: 'Settings', exact: true}).click();
+  await expect(page.getByLabel('Subreddits', {exact: true})).toHaveValue('OpenAI, LocalLLaMA');
+});
+test('Today renders all 40 cached cards and settings preserve the maximum on reload', async ({ page }) => {
+  await mockPosts(page);
+  await page.goto('/newtab.html');
+  await page.evaluate(async () => {
+    const {setPreferences, setCache, getSettings} = await import('/src/services/storage.js');
+    const {DEFAULT_REDDIT_COMMUNITIES} = await import('/src/settings.js');
+    const {GITHUB_TRENDING_SOURCE_REVISION, POSTS_SOURCE_REVISION, DESCRIPTION_REVISION} = await import('/src/services/feeds.js');
+    setPreferences({todayMix: {code:8, models:8, datasets:8, papers:8, posts:8}});
+    const filters = getSettings().filters;
+    const sourceFilters = {...filters, community: {...filters.papers, source:'community'}, arxiv: {...filters.papers, source:'arxiv', sort:'newest'}};
+    delete sourceFilters.today; delete sourceFilters.papers; delete sourceFilters.library;
+    const cards = Array.from({length:40}, (_,i) => ({id:`test:${i}`, source:'hackernews', section:'posts',type:'Post',title:`Card ${i}`,url:`https://news.ycombinator.com/item?id=${i}`,summary:'Summary',tags:[],metrics:[],links:[],secondary:{left:'',right:''},details:{}}));
+    setCache({section:'today',filters:filters.today,sourceRevision:GITHUB_TRENDING_SOURCE_REVISION,descriptionRevision:DESCRIPTION_REVISION,postsRevision:POSTS_SOURCE_REVISION,redditCommunities:[...DEFAULT_REDDIT_COMMUNITIES],todayMix:getSettings().preferences.todayMix,hiddenIds:[],sourceFilters},cards,900000,{status:{label:'All sources live',stale:false}});
+  });
+  await page.getByRole('button',{name:'Today',exact:true}).click();
+  await expect(page.locator('.grid .card')).toHaveCount(40);
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.getByText('40 cards',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Add one Posts card',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('1-40');
+  await page.reload();
+  await expect(page.locator('.grid .card')).toHaveCount(40);
+  await page.getByRole('button',{name:'Settings',exact:true}).click();
+  await expect(page.locator('[data-today-lane="posts"] output')).toHaveText('8');
 });
