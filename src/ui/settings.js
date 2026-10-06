@@ -33,6 +33,7 @@ const LANE_LABELS = {
   models: 'Models',
   datasets: 'Datasets',
   papers: 'Papers',
+  posts: 'Posts',
 };
 
 const segment = (setting, label, options, value) => `
@@ -62,6 +63,15 @@ const filterSummary = (section, filters) => {
     return selected?.label || filters[control.id];
   }).filter(Boolean).join(' / ');
 };
+
+const selectPostDefault = ({ id, label, options }, value) => `
+  <label class="settings-field">
+    <span class="settings-label">${escapeHtml(label)}</span>
+    <select data-post-default="${escapeHtml(id)}" aria-label="Default Posts ${escapeHtml(label.toLowerCase())}">
+      ${options.map((option) => `<option value="${escapeHtml(option.value)}" ${option.value === value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}
+    </select>
+  </label>
+`;
 
 const importReviewHtml = (review) => review ? `
   <div class="import-review" data-import-review>
@@ -137,6 +147,12 @@ export const renderSettingsDrawer = ({
               `).join('')}
             </div>
             <p class="settings-help">Choose 1-12 cards total, with up to 4 from each source.</p>
+          </section>
+
+          <section class="settings-section" aria-labelledby="posts-settings-heading">
+            <h3 id="posts-settings-heading">Posts</h3>
+            <p class="settings-help">Defaults for the Posts feed and its cards in Today.</p>
+            ${WORKBENCHES.posts.controls.map((control) => selectPostDefault(control, filterDefaults.posts[control.id])).join('')}
           </section>
 
           <section class="settings-section" aria-labelledby="defaults-heading">

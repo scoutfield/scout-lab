@@ -26,6 +26,27 @@ const localData = () => ({
 });
 
 describe('portable backup', () => {
+  it('round-trips Posts filters, lane counts, and saved discussion/article links', () => {
+    const data = localData();
+    data.settings = normalizeSettings({
+      filters: { posts: { time: 'day', topic: 'multimodal', minPoints: '20', minComments: '5' } },
+      preferences: { todayMix: { code: 1, models: 0, datasets: 0, papers: 0, posts: 3 } },
+    });
+    data.userState['hn:123'] = {
+      favorite: true, comment: 'Keep this discussion', updatedAt: '2026-10-05T00:00:00Z',
+      libraryCard: {
+        id: 'hn:123', title: 'AI video', type: 'Post', source: 'hackernews',
+        url: 'https://news.ycombinator.com/item?id=123',
+        links: [{ label: 'Article', source: 'web', url: 'https://example.com/video' }],
+      },
+    };
+    const restored = parseBackup(JSON.stringify(createBackup(data))).data;
+    expect(restored.settings.filters.posts).toEqual(data.settings.filters.posts);
+    expect(restored.settings.preferences.todayMix.posts).toBe(3);
+    expect(restored.userState['hn:123'].libraryCard.links[0].url).toBe('https://example.com/video');
+    expect(restored.userState['hn:123'].comment).toBe('Keep this discussion');
+  });
+
   it('creates a versioned backup from durable data only', () => {
     const backup = createBackup({
       ...localData(),
@@ -38,7 +59,7 @@ describe('portable backup', () => {
       version: 2,
       exportedAt: '2026-08-29T12:00:00.000Z',
     });
-    expect(backup.data.settings.version).toBe(3);
+    expect(backup.data.settings.version).toBe(4);
     expect(backup.data.cache).toBeUndefined();
     expect(backup.data.archiveHandle).toBeUndefined();
     expect(backup.data.learnProgress).toBeUndefined();

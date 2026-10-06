@@ -1,7 +1,7 @@
 import { createDefaultFilters, normalizeWorkbenchFilters, SECTION_ORDER } from './workbenches.js';
 
-export const SETTINGS_VERSION = 3;
-export const TODAY_LANES = ['code', 'models', 'datasets', 'papers'];
+export const SETTINGS_VERSION = 4;
+export const TODAY_LANES = ['code', 'models', 'datasets', 'papers', 'posts'];
 
 const THEMES = new Set(['system', 'light', 'dark']);
 const TEXT_SIZES = new Set(['standard', 'large']);
@@ -9,11 +9,12 @@ const DENSITIES = new Set(['comfortable', 'compact']);
 const STARTUP_SECTIONS = new Set(['last-used', ...SECTION_ORDER]);
 const LINK_BEHAVIORS = new Set(['foreground', 'background']);
 
-const DEFAULT_TODAY_MIX = Object.freeze({
+export const DEFAULT_TODAY_MIX = Object.freeze({
   code: 2,
   models: 1,
   datasets: 1,
   papers: 2,
+  posts: 2,
 });
 
 export const DEFAULT_PREFERENCES = Object.freeze({
@@ -46,6 +47,12 @@ export const normalizeTodayMix = (value) => {
     lane,
     Number.isInteger(value?.[lane]) ? value[lane] : DEFAULT_TODAY_MIX[lane],
   ]));
+  // Preserve existing lane allocations when adding Posts to a legacy full queue.
+  if (value && !Object.hasOwn(value, 'posts')) {
+    const existingTotal = TODAY_LANES.filter((lane) => lane !== 'posts')
+      .reduce((total, lane) => total + candidate[lane], 0);
+    candidate.posts = Math.max(0, Math.min(DEFAULT_TODAY_MIX.posts, 12 - existingTotal));
+  }
   return isValidTodayMix(candidate) ? candidate : { ...DEFAULT_TODAY_MIX };
 };
 

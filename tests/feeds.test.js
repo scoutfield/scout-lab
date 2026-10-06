@@ -242,9 +242,13 @@ describe('feed integration', () => {
     expect(result.status).toEqual({ label: 'Hugging Face datasets', stale: false });
   });
 
-  it('assembles Today from the five live source requests despite different response shapes', async () => {
+  it('assembles Today including Posts from live source requests despite different response shapes', async () => {
     const fetchMock = vi.fn(async (url) => {
       const value = `${url}`;
+      if (value.includes('hn.algolia.com')) return response({ hits: [
+        { objectID: '1', title: 'AI agents', points: 40, num_comments: 3, created_at: new Date(Date.now() - 3600_000).toISOString() },
+        { objectID: '2', title: 'LLM evaluation', points: 20, num_comments: 5, created_at: new Date(Date.now() - 7200_000).toISOString() },
+      ], nbPages: 1 });
       if (value.includes('github.com/trending')) return response(trendingHtml, { type: 'text/html' });
       if (value.includes('/api/models')) return response([{ id: 'owner/model', downloads: 10, likes: 2, trendingScore: 3, tags: [] }]);
       if (value.includes('/api/datasets')) return response([{ id: 'owner/dataset', downloads: 20, likes: 4, trendingScore: 5, tags: [] }]);
@@ -260,14 +264,18 @@ describe('feed integration', () => {
       allFilters: filters,
     });
 
-    expect(result.cards).toHaveLength(6);
-    expect(result.cards.map((card) => card.type)).toEqual(['Code', 'Code', 'Model', 'Dataset', 'Paper', 'Paper']);
+    expect(result.cards).toHaveLength(8);
+    expect(result.cards.map((card) => card.type)).toEqual(['Code', 'Code', 'Model', 'Dataset', 'Paper', 'Paper', 'Post', 'Post']);
     expect(result.status).toMatchObject({ label: 'All sources live', stale: false });
   });
 
   it('ignores legacy Code topics and preserves GitHub Trending order in Today', async () => {
     const fetchMock = vi.fn(async (url) => {
       const value = `${url}`;
+      if (value.includes('hn.algolia.com')) return response({ hits: [
+        { objectID: '1', title: 'AI agents', points: 40, num_comments: 3, created_at: new Date(Date.now() - 3600_000).toISOString() },
+        { objectID: '2', title: 'LLM evaluation', points: 20, num_comments: 5, created_at: new Date(Date.now() - 7200_000).toISOString() },
+      ], nbPages: 1 });
       if (value.includes('github.com/trending')) return response(trendingHtml, { type: 'text/html' });
       if (value.includes('/api/models')) return response([{ id: 'owner/model', downloads: 10, likes: 2, trendingScore: 3, tags: [] }]);
       if (value.includes('/api/datasets')) return response([{ id: 'owner/dataset', downloads: 20, likes: 4, trendingScore: 5, tags: [] }]);

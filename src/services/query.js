@@ -207,26 +207,22 @@ export const buildCommunityPapersUrl = (filters, now = new Date()) => {
   return `https://huggingface.co/api/daily_papers?${params}`;
 };
 
-const POST_RANGE_DAYS = { day: 1, week: 7, month: 30 };
-const AI_POST_TERMS = ['AI', 'LLM', 'GPT', 'OpenAI', 'Anthropic', 'Claude', 'Gemini', '"machine learning"', 'agents'];
-const POST_MIN_POINTS = { hot: 0, trending: 5, top: 20 };
+export const POST_RANGE_DAYS = { day: 1, week: 7, month: 30 };
+export const POSTS_PAGE_SIZE = 200;
 
-export const buildPostsUrl = (filters, now = new Date()) => {
-  const rank = POST_MIN_POINTS[filters.rank] === undefined ? 'hot' : filters.rank;
-  const topicTerms = (TOPIC_TERMS[filters.topic] || []).map((term) => (term.includes(' ') ? `"${term}"` : term));
-  const terms = (topicTerms.length ? topicTerms : AI_POST_TERMS).join(' ');
-  const params = new URLSearchParams({ query: terms, optionalWords: terms, hitsPerPage: '100' });
+export const buildPostsUrl = (filters, now = new Date(), { order = 'points', page = 0 } = {}) => {
+  // Empty-query pools avoid relevance-ranking bias and missing unfamiliar AI titles.
+  const params = new URLSearchParams({ tags: 'story', hitsPerPage: `${POSTS_PAGE_SIZE}`, page: `${page}` });
   const seconds = Math.floor(now.getTime() / 1000);
-  const numeric = [];
-  if (rank === 'hot') {
-    params.set('tags', 'story,front_page');
-  } else {
-    params.set('tags', 'story');
-    const days = rank === 'trending' ? 1 : POST_RANGE_DAYS[filters.time] || 7;
-    numeric.push(`created_at_i>${seconds - days * 86400}`, `points>=${POST_MIN_POINTS[rank]}`);
-  }
-  if (numeric.length) params.set('numericFilters', numeric.join(','));
-  return `https://hn.algolia.com/api/v1/search?${params}`;
+  const days = POST_RANGE_DAYS[filters.time] || 7;
+  const threshold = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+  params.set('numericFilters', [
+    `created_at_i>${seconds - days * 86400}`,
+    `points>=${threshold(filters.minPoints)}`,
+    `num_comments>=${threshold(filters.minComments)}`,
+  ].join(','));
+  const endpoint = order === 'recent' ? 'search_by_date' : 'search';
+  return `https://hn.algolia.com/api/v1/${endpoint}?${params}`;
 };
 
 const arxivCategory = (topic) => {

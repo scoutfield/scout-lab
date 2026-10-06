@@ -1,10 +1,13 @@
-import { getWorkbench } from '../workbenches.js';
+import { getWorkbench, normalizeWorkbenchFilters, POSTS_CACHE_TTL } from '../workbenches.js';
+import { DEFAULT_TODAY_MIX, normalizeTodayMix } from '../settings.js';
 import {
   buildArxivRequest,
   buildCommunityPapersUrl,
   buildDatasetsRequest,
   buildGithubRequest,
   buildPostsUrl,
+  POST_RANGE_DAYS,
+  POSTS_PAGE_SIZE,
   buildModelsUrl,
   matchesTopic,
   resolveGithubRequestUrl,
@@ -18,6 +21,7 @@ import {
   normalizeModel,
   filterModelsByUpdated,
   isAiPost,
+  matchesPostTopic,
   normalizePost,
   groupModelCards,
   parseArxivFeed,
@@ -30,6 +34,7 @@ import { getCache, getStaleCache, setCache } from './storage.js';
 const REQUEST_TIMEOUT = 10_000;
 const pendingRequests = new Map();
 export const GITHUB_TRENDING_SOURCE_REVISION = 'github-trending-v4';
+export const POSTS_SOURCE_REVISION = 'unified-posts-v1';
 export { DESCRIPTION_REVISION };
 
 const fallbackCards = {
@@ -138,21 +143,43 @@ const fetchDatasets = async (filters) => {
   return { cards, status: { label: 'Hugging Face datasets', stale: false } };
 };
 
-const POST_SORT = {
-  hot: (card) => card.details.hotScore,
-  trending: (card) => card.details.hotScore,
-  top: (card) => card.details.points,
+const POSTS_MAX_PAGES = 5;
+
+const fetchPostPool = async (filters, now, order) => {
+  const hits = [];
+  let limited = false;
+  for (let page = 0; page < POSTS_MAX_PAGES; page += 1) {
+    const data = await fetchJson(buildPostsUrl(filters, now, { order, page }));
+    if (!Array.isArray(data?.hits)) throw new Error('Hacker News search returned an unexpected response');
+    hits.push(...data.hits);
+    limited = Number(data.nbHits) > POSTS_MAX_PAGES * POSTS_PAGE_SIZE;
+    if (data.hits.length < POSTS_PAGE_SIZE || page + 1 >= Number(data.nbPages)) break;
+  }
+  return { hits, limited };
 };
 
 const fetchPosts = async (filters) => {
-  const data = await fetchJson(buildPostsUrl(filters));
-  if (!Array.isArray(data?.hits)) throw new Error('Hacker News search returned an unexpected response');
-  const sortKey = POST_SORT[filters.rank] || POST_SORT.hot;
-  const cards = data.hits.filter((hit) => hit.title && hit.objectID).map((hit) => normalizePost(hit))
-    .filter((card) => isAiPost(card) && matchesTopic(card, filters.topic))
-    .sort((left, right) => sortKey(right) - sortKey(left))
+  const now = new Date();
+  const pools = await Promise.all(['points', 'recent'].map((order) => fetchPostPool(filters, now, order)));
+  const hits = [...new Map(pools.flatMap((pool) => pool.hits)
+    .filter((hit) => hit.title && hit.objectID).map((hit) => [`${hit.objectID}`, hit])).values()];
+  const cutoff = now.getTime() - (POST_RANGE_DAYS[filters.time] || 7) * 86400_000;
+  const cards = hits.map((hit) => normalizePost(hit, now.getTime()))
+    .filter((card) => Date.parse(card.publishedAt) > cutoff && Date.parse(card.publishedAt) <= now.getTime()
+      && card.details.points >= Number(filters.minPoints) && card.details.comments >= Number(filters.minComments)
+      && isAiPost(card) && matchesPostTopic(card, filters.topic))
+    .sort((left, right) => right.details.hotScore - left.details.hotScore
+      || right.details.points - left.details.points
+      || Date.parse(right.publishedAt) - Date.parse(left.publishedAt)
+      || left.id.localeCompare(right.id))
     .slice(0, 24);
-  return { cards, status: { label: 'Hacker News', stale: false } };
+  return {
+    cards,
+    status: {
+      label: 'Hacker News', stale: false, sourceRevision: POSTS_SOURCE_REVISION,
+      updatedAt: now.toISOString(), candidates: hits.length, limited: pools.some((pool) => pool.limited),
+    },
+  };
 };
 
 const fetchPapers = async (filters) => {
@@ -210,40 +237,46 @@ export const composeTodayCards = (lanes, mix, userState = {}) => {
       visibleLane(lanes.arxiv, userState),
       mix.papers,
     ),
+    posts: visibleLane(lanes.posts, userState).slice(0, mix.posts || 0),
   };
   const shortfalls = Object.fromEntries(Object.entries(selected)
     .filter(([lane, cards]) => cards.length < mix[lane])
     .map(([lane, cards]) => [lane, mix[lane] - cards.length]));
   return {
-    cards: ['code', 'models', 'datasets', 'papers'].flatMap((lane) => selected[lane]),
+    cards: ['code', 'models', 'datasets', 'papers', 'posts'].flatMap((lane) => selected[lane]),
     shortfalls,
   };
 };
 
+const todaySourceFilters = (allFilters = {}) => ({
+  code: { ...getWorkbench('code').defaults, ...allFilters.code },
+  models: { ...getWorkbench('models').defaults, ...allFilters.models },
+  datasets: { ...getWorkbench('datasets').defaults, ...allFilters.datasets },
+  community: { ...getWorkbench('papers').defaults, ...allFilters.papers, source: 'community' },
+  arxiv: { ...getWorkbench('papers').defaults, ...allFilters.papers, source: 'arxiv', sort: 'newest' },
+  posts: normalizeWorkbenchFilters('posts', allFilters.posts),
+});
+
 const fetchToday = async (_filters, options) => {
-  const allFilters = options.allFilters || {};
-  const sourceFilters = {
-    code: { ...getWorkbench('code').defaults, ...allFilters.code },
-    models: { ...getWorkbench('models').defaults, ...allFilters.models },
-    datasets: { ...getWorkbench('datasets').defaults, ...allFilters.datasets },
-    community: { ...getWorkbench('papers').defaults, ...allFilters.papers, source: 'community' },
-    arxiv: { ...getWorkbench('papers').defaults, ...allFilters.papers, source: 'arxiv', sort: 'newest' },
-  };
+  const sourceFilters = todaySourceFilters(options.allFilters);
   const sharedOptions = { ...options, force: false };
-  const [code, models, datasets, community, arxiv] = await Promise.all([
+  const postsEnabled = options.todayMix.posts > 0;
+  const [code, models, datasets, community, arxiv, posts] = await Promise.all([
     fetchSection('code', sourceFilters.code, sharedOptions),
     fetchSection('models', sourceFilters.models, sharedOptions),
     fetchSection('datasets', sourceFilters.datasets, sharedOptions),
     fetchSection('papers', sourceFilters.community, sharedOptions),
     fetchSection('papers', sourceFilters.arxiv, sharedOptions),
+    postsEnabled ? fetchSection('posts', sourceFilters.posts, { ...sharedOptions, force: options.force }) : null,
   ]);
-  const results = [code, models, datasets, community, arxiv];
+  const results = [code, models, datasets, community, arxiv, ...(postsEnabled ? [posts] : [])];
   const composition = composeTodayCards({
     code: code.cards,
     models: models.cards,
     datasets: datasets.cards,
     community: community.cards,
     arxiv: arxiv.cards,
+    posts: posts?.cards || [],
   }, options.todayMix, options.userState);
   const missing = Object.entries(composition.shortfalls)
     .map(([lane, count]) => `${count} ${lane}`)
@@ -254,24 +287,30 @@ const fetchToday = async (_filters, options) => {
 
   return {
     cards: composition.cards,
+    // A Today cache must expire with its Posts source cache, not restart its lifetime.
+    cacheTtl: postsEnabled
+      ? Math.max(0, Math.min(POSTS_CACHE_TTL, (posts.cacheExpiresAt || Date.now() + POSTS_CACHE_TTL) - Date.now()))
+      : getWorkbench('today').cacheTtl,
     status: {
       label: unavailable ? 'Some sources unavailable' : stale ? 'Mixed live and fallback sources' : 'All sources live',
       stale,
       unavailable,
       ...(missing ? { message: `Today could not fill: ${missing}.` } : {}),
-      sources: Object.fromEntries(['code', 'models', 'datasets', 'communityPapers', 'arxiv']
+      sources: Object.fromEntries(['code', 'models', 'datasets', 'communityPapers', 'arxiv', ...(postsEnabled ? ['posts'] : [])]
         .map((id, index) => [id, results[index].status])),
     },
   };
 };
 
 export const fetchSection = async (section, filters, options = {}) => {
+  if (section === 'posts') filters = normalizeWorkbenchFilters('posts', filters);
   const normalizedOptions = {
     force: false,
-    todayMix: { code: 2, models: 1, datasets: 1, papers: 2 },
+    todayMix: DEFAULT_TODAY_MIX,
     userState: {},
     ...options,
   };
+  normalizedOptions.todayMix = normalizeTodayMix(normalizedOptions.todayMix);
   const hiddenIds = section === 'today'
     ? Object.entries(normalizedOptions.userState).filter(([, value]) => value.hidden).map(([id]) => id).sort()
     : [];
@@ -280,14 +319,22 @@ export const fetchSection = async (section, filters, options = {}) => {
     filters,
     ...(['code', 'today'].includes(section) ? { sourceRevision: GITHUB_TRENDING_SOURCE_REVISION } : {}),
     ...(['models', 'today'].includes(section) ? { descriptionRevision: DESCRIPTION_REVISION } : {}),
-    ...(section === 'today' ? { todayMix: normalizedOptions.todayMix, hiddenIds } : {}),
+    ...(['posts', 'today'].includes(section) ? { postsRevision: POSTS_SOURCE_REVISION } : {}),
+    ...(section === 'today' ? {
+      todayMix: normalizedOptions.todayMix, hiddenIds,
+      sourceFilters: {
+        ...todaySourceFilters(normalizedOptions.allFilters),
+        // Ignore disabled Posts filters in the queue's cache identity.
+        posts: normalizedOptions.todayMix.posts > 0 ? todaySourceFilters(normalizedOptions.allFilters).posts : null,
+      },
+    } : {}),
   };
   const key = stableSerialize(query);
 
   if (!normalizedOptions.force) {
     const cached = getCache(query);
     if (isUsableCache(section, cached)) {
-      return { cards: cached.cards, status: cached.status, cached: true };
+      return { cards: cached.cards, status: cached.status, cached: true, cacheExpiresAt: cached.expiresAt };
     }
   }
 
@@ -296,8 +343,8 @@ export const fetchSection = async (section, filters, options = {}) => {
       const result = section === 'today'
         ? await fetchToday(filters, normalizedOptions)
         : await liveFetcher(section, filters, normalizedOptions);
-      setCache(query, result.cards, getWorkbench(section).cacheTtl, { status: result.status });
-      return { ...result, cached: false };
+      const entry = setCache(query, result.cards, result.cacheTtl ?? getWorkbench(section).cacheTtl, { status: result.status });
+      return { ...result, cached: false, cacheExpiresAt: entry.expiresAt };
     } catch (error) {
       if (section === 'code') {
         return {

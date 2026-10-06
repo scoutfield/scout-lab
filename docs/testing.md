@@ -15,7 +15,7 @@ Tests are part of the repository and are release gates. Product behavior must no
 | Real-browser Code parity and failure states | `tests/e2e/code-results.spec.js` |
 | Real-browser Models sorting, filters, grouping, links, actions, and mobile layout | `tests/e2e/models-workbench.spec.js` |
 | Real-browser Datasets and Papers source flows plus removed-workbench assertions | `tests/e2e/discovery-workbenches.spec.js` |
-| Today fixed composition without topic/filter chrome | `tests/feeds.test.js`, `tests/ui.test.js`, `tests/e2e/reading-comfort.spec.js` |
+| Today configurable composition including Posts, without topic/filter chrome | `tests/feeds.test.js`, `tests/ui.test.js`, `tests/e2e/reading-comfort.spec.js` |
 | Reading typography, density, themes, and responsive grid | `tests/e2e/reading-comfort.spec.js` |
 | Foreground and background link opening | `tests/linkOpening.test.js` |
 | GitHub, Hugging Face, and arXiv normalization | `tests/normalizers.test.js` |
@@ -61,3 +61,12 @@ Then complete the browser acceptance matrix for behavior that changed.
 ## Maintenance Rule
 
 Every behavior change must update or add the nearest automated test. Changes to controls, navigation, persistence, responsive layout, themes, source contracts, or user workflows must also update the browser acceptance matrix. Pull requests record both obligations explicitly in `.github/pull_request_template.md`, and CI reports deterministic-check or coverage-gate failures immediately.
+
+## Unified Posts regression coverage
+
+- `tests/posts.test.js`: paginated candidate coverage, deduplication, age-adjusted ranking, thresholds, bounded sampling, outages, 15-minute cache expiry, and Today source-cache lifetime.
+- `tests/settings.test.js` and `tests/backup.test.js`: legacy rank migration, saved Posts filters, safe full-queue migration, explicit zero allocation, and durable backup round-trips.
+- `tests/e2e/posts-workbench.spec.js`: unified controls, editable defaults, persistence/restores, Today hidden replacements and disabled lane, Library notes/article links, mobile overflow, and outage rendering.
+- `tests/e2e/startup-cache.spec.js`: eight-card default Today composition, shared Posts fetches, and cache reuse across tabs.
+
+Browser checks require an unused port. The default Playwright configuration can reuse another application's server on 4173; use a temporary config with a dedicated port when that port is occupied.

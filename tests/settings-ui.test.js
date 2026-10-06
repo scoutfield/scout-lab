@@ -20,8 +20,10 @@ describe('settings drawer renderer', () => {
     expect(document.querySelector('[aria-label="Text size"]')).toBeTruthy();
     expect(document.querySelector('[data-setting="density"]')).toBeTruthy();
     expect(document.querySelector('[data-setting="startupSection"]')).toBeTruthy();
-    expect(document.querySelectorAll('[data-today-lane]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-today-lane]')).toHaveLength(5);
     expect(document.querySelectorAll('[data-restore-workbench]')).toHaveLength(7);
+    expect(document.querySelectorAll('[data-post-default]')).toHaveLength(4);
+    expect(document.querySelector('[data-post-default="minPoints"]').value).toBe('0');
     expect(document.querySelector('[data-command="export-backup"]')).toBeTruthy();
     expect(document.querySelector('[data-command="choose-import"]')).toBeTruthy();
   });

@@ -9,7 +9,7 @@ const datasets = [{ id: 'scout/dataset', downloads: 20, likes: 4, trendingScore:
 const papers = [{ paper: { id: '2608.10000', title: 'Scout paper', summary: 'Summary', upvotes: 6, authors: [] } }];
 
 test('cold startup warms every remote workbench and later new tabs reuse the cache', async ({ page, context }) => {
-  const requests = { github: 0, models: 0, modelReadmes: 0, datasets: 0, community: 0, arxiv: 0 };
+  const requests = { github: 0, models: 0, modelReadmes: 0, datasets: 0, community: 0, arxiv: 0, posts: 0 };
   await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem('scout-lab:data-schema', '2');
@@ -46,20 +46,28 @@ test('cold startup warms every remote workbench and later new tabs reuse the cac
     return route.fulfill({ status: 200, contentType: 'application/atom+xml', body: arxivXml });
   });
 
-  await page.goto('/newtab.html');
-  await expect(page.getByRole('heading', { name: "Today's queue" })).toBeVisible();
-  await expect(page.locator('.grid .card')).toHaveCount(6);
-  await expect.poll(() => requests).toEqual({
-    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1,
+  await context.route('https://hn.algolia.com/api/v1/search**', (route) => {
+    requests.posts += 1;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ hits: [
+      { objectID: '1', title: 'AI tool', points: 40, num_comments: 5, created_at: new Date(Date.now() - 3600_000).toISOString() },
+      { objectID: '2', title: 'LLM tool', points: 20, num_comments: 3, created_at: new Date(Date.now() - 7200_000).toISOString() },
+    ], nbPages: 1 }) });
   });
 
-  for (const section of ['Code', 'Models', 'Datasets', 'Papers']) {
+  await page.goto('/newtab.html');
+  await expect(page.getByRole('heading', { name: "Today's queue" })).toBeVisible();
+  await expect(page.locator('.grid .card')).toHaveCount(8);
+  await expect.poll(() => requests).toEqual({
+    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1, posts: 2,
+  });
+
+  for (const section of ['Code', 'Models', 'Datasets', 'Papers', 'Posts']) {
     await page.getByRole('button', { name: section, exact: true }).click();
     await expect(page.getByRole('heading', { name: section, exact: true })).toBeVisible();
   }
 
   expect(requests).toEqual({
-    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1,
+    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1, posts: 2,
   });
 
   const secondNewTab = await context.newPage();
@@ -67,6 +75,6 @@ test('cold startup warms every remote workbench and later new tabs reuse the cac
   await expect(secondNewTab.getByRole('heading', { name: "Today's queue" })).toBeVisible();
   await secondNewTab.waitForTimeout(100);
   expect(requests).toEqual({
-    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1,
+    github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1, posts: 2,
   });
 });

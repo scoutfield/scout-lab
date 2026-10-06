@@ -1,7 +1,7 @@
 # Unified Posts feed, customization, and Today
 
 Date: 2026-10-05
-Status: Design approved in chat; written specification ready for review.
+Status: Design and written specification approved in chat; implemented locally.
 
 ## Goal
 

@@ -27,10 +27,11 @@ import {
 const now = new Date('2026-08-28T12:00:00.000Z');
 
 describe('workbench query builders', () => {
-  it('uses one six-hour TTL for every remote workbench', () => {
+  it('uses a shorter Posts TTL while retaining six-hour caches for other sources', () => {
     expect(REMOTE_CACHE_TTL).toBe(6 * 60 * 60 * 1000);
-    expect(['today', 'code', 'models', 'datasets', 'papers', 'posts']
-      .map((section) => WORKBENCHES[section].cacheTtl)).toEqual(Array(6).fill(REMOTE_CACHE_TTL));
+    expect(['today', 'code', 'models', 'datasets', 'papers']
+      .map((section) => WORKBENCHES[section].cacheTtl)).toEqual(Array(5).fill(REMOTE_CACHE_TTL));
+    expect(WORKBENCHES.posts.cacheTtl).toBe(15 * 60 * 1000);
     expect(WORKBENCHES.library.cacheTtl).toBe(Infinity);
   });
 
@@ -319,25 +320,24 @@ describe('Hacker News posts', () => {
   const now = new Date('2026-10-04T00:00:00Z');
   const seconds = Math.floor(now.getTime() / 1000);
 
-  it('queries the front page for Hot without a time window', () => {
-    const url = new URL(buildPostsUrl({ rank: 'hot', time: 'week', topic: 'all' }, now));
+  it('requests all stories in the chosen rolling window without keyword bias', () => {
+    const url = new URL(buildPostsUrl({ time: 'week', topic: 'all', minPoints: '0', minComments: '0' }, now));
     expect(url.origin + url.pathname).toBe('https://hn.algolia.com/api/v1/search');
-    expect(url.searchParams.get('tags')).toBe('story,front_page');
-    expect(url.searchParams.get('numericFilters')).toBeNull();
-    expect(url.searchParams.get('query')).toContain('LLM');
+    expect(url.searchParams.get('tags')).toBe('story');
+    expect(url.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 7 * 86400},points>=0,num_comments>=0`);
+    expect(url.searchParams.has('query')).toBe(false);
+    expect(url.searchParams.has('optionalWords')).toBe(false);
+    expect(url.searchParams.get('hitsPerPage')).toBe('200');
   });
 
-  it('limits Trending to the last day and Top to the selected range', () => {
-    const trending = new URL(buildPostsUrl({ rank: 'trending', time: 'month', topic: 'all' }, now));
-    expect(trending.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 86400},points>=5`);
-    const top = new URL(buildPostsUrl({ rank: 'top', time: 'month', topic: 'all' }, now));
-    expect(top.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 30 * 86400},points>=20`);
-  });
-
-  it('narrows the query with the AI topic and quotes phrases', () => {
-    const url = new URL(buildPostsUrl({ rank: 'top', time: 'week', topic: 'llms' }, now));
-    expect(url.searchParams.get('query')).toBe('llm "language model" transformer');
-    expect(url.searchParams.get('optionalWords')).toBe(url.searchParams.get('query'));
+  it('applies points and comments thresholds to both paginated candidate pools', () => {
+    const filters = { time: 'day', minPoints: '20', minComments: '5', topic: 'llms' };
+    const url = new URL(buildPostsUrl(filters, now, { order: 'recent', page: 2 }));
+    expect(url.pathname).toBe('/api/v1/search_by_date');
+    expect(url.searchParams.get('page')).toBe('2');
+    expect(url.searchParams.get('numericFilters')).toBe(`created_at_i>${seconds - 86400},points>=20,num_comments>=5`);
+    const month = new URL(buildPostsUrl({ ...filters, time: 'month' }, now));
+    expect(month.searchParams.get('numericFilters')).toContain(`created_at_i>${seconds - 30 * 86400}`);
   });
 
   it('allows outbound article links on any https host but nothing else', () => {

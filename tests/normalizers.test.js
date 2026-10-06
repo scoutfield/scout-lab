@@ -221,7 +221,7 @@ describe('source normalizers', () => {
 describe('Hacker News posts', () => {
   const now = Date.parse('2026-10-04T00:00:00Z');
   const hit = {
-    objectID: '123', title: 'Agents don\'t need memory', url: 'https://www.example.com/blog/agents',
+    objectID: '123', title: 'AI agents don\'t need memory', url: 'https://www.example.com/blog/agents',
     points: 338, num_comments: 205, author: 'alice', created_at: '2026-10-03T12:00:00Z',
   };
 
@@ -252,5 +252,13 @@ describe('Hacker News posts', () => {
     expect(isAiPost(normalizePost({ ...hit, title: 'Show HN: Claude-powered CLI' }, now))).toBe(true);
     expect(isAiPost(normalizePost({ ...hit, title: 'Why I stopped using Kubernetes', url: 'https://example.com' }, now))).toBe(false);
     expect(isAiPost(normalizePost({ ...hit, title: 'Rain on the sidewalk' }, now))).toBe(false);
+    for (const title of ['Travel agents are disappearing', 'Transformer blew up outside my house', 'Ragtime piano']) {
+      expect(isAiPost(normalizePost({ ...hit, title }, now))).toBe(false);
+    }
+    for (const title of ['New text-to-video model', 'Show HN: My image generator', 'Retrieval-augmented generation', 'RAG is not enough', 'MCP is changing', "Agents don't need memory"]) {
+      expect(isAiPost(normalizePost({ ...hit, title }, now))).toBe(true);
+    }
+    expect(isAiPost(normalizePost({ ...hit, title: 'Our new model', url: 'https://openai.com/news/model' }, now))).toBe(true);
+    expect(isAiPost(normalizePost({ ...hit, title: 'Our new model', url: 'https://openai.com.evil.example/model' }, now))).toBe(false);
   });
 });

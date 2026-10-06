@@ -11,6 +11,7 @@ import {
   DESCRIPTION_REVISION,
   fetchSection,
   GITHUB_TRENDING_SOURCE_REVISION,
+  POSTS_SOURCE_REVISION,
 } from './services/feeds.js?v=1.0.5';
 import { openInBackground, shouldOpenInBackground } from './services/linkOpening.js?v=1.0.5';
 import { ensureCurrentDataSchema } from './services/dataReset.js?v=1.0.5';
@@ -104,12 +105,6 @@ const setState = (patch) => {
 
 const activeWorkbench = () => {
   const workbench = getWorkbench(state.selectedSection);
-  if (workbench.id === 'posts') {
-    // Hot reads the live front page and Trending the last 24 hours; only Top uses a range.
-    return state.filters.posts.rank === 'top'
-      ? workbench
-      : { ...workbench, controls: workbench.controls.filter(({ id }) => id !== 'time') };
-  }
   if (workbench.id !== 'papers') return workbench;
 
   const filters = state.filters.papers;
@@ -437,6 +432,16 @@ const savePreference = async (patch, focusSelector) => {
   focusAfterRender(focusSelector);
 };
 
+const savePostsDefaults = async (patch, focusSelector, notice = 'Saved.') => {
+  const defaults = setFilterDefaults('posts', patch);
+  setWorkbenchFilters('posts', defaults);
+  const settings = getSettings();
+  setState({ settings, filters: settings.filters, search: '', settingsError: '', settingsNotice: notice });
+  render();
+  if (['posts', 'today'].includes(state.selectedSection)) await load({ clear: true });
+  focusAfterRender(focusSelector);
+};
+
 const downloadBackup = () => {
   const backup = createBackup(getDurableData());
   const blob = new Blob([`${JSON.stringify(backup, null, 2)}\n`], { type: 'application/json' });
@@ -550,9 +555,7 @@ const handleCommand = async (command) => {
   }
   if (command === 'restore-all-filter-defaults') {
     restoreAllFactoryFilterDefaults();
-    setState({ settings: getSettings(), settingsNotice: 'Factory filter defaults restored.', settingsError: '' });
-    render();
-    focusAfterRender('[data-command="restore-all-filter-defaults"]');
+    await savePostsDefaults(WORKBENCHES.posts.defaults, '[data-command="restore-all-filter-defaults"]', 'Factory filter defaults restored.');
     return;
   }
   if (command === 'request-reset-preferences') {
@@ -568,7 +571,9 @@ const handleCommand = async (command) => {
     return;
   }
   if (command === 'confirm-reset-preferences') {
-    const nextSettings = resetPreferences();
+    resetPreferences();
+    setWorkbenchFilters('posts', WORKBENCHES.posts.defaults);
+    const nextSettings = getSettings();
     applyAppearance(nextSettings.preferences);
     setState({
       settings: nextSettings,
@@ -578,7 +583,7 @@ const handleCommand = async (command) => {
       settingsError: '',
     });
     render();
-    if (state.selectedSection === 'today') await load({ force: true, clear: true });
+    if (['today', 'posts'].includes(state.selectedSection)) await load({ force: true, clear: true });
     focusAfterRender('[data-command="request-reset-preferences"]');
     return;
   }
@@ -638,6 +643,10 @@ const onClick = async (event) => {
   const restoreWorkbench = event.target.closest('[data-restore-workbench]');
   if (restoreWorkbench) {
     const section = restoreWorkbench.dataset.restoreWorkbench;
+    if (section === 'posts') {
+      await savePostsDefaults(WORKBENCHES.posts.defaults, '[data-restore-workbench="posts"]', 'Posts factory default restored.');
+      return;
+    }
     restoreFactoryFilterDefaults(section);
     setState({ settings: getSettings(), settingsNotice: `${getWorkbench(section).label} factory default restored.`, settingsError: '' });
     render();
@@ -695,6 +704,11 @@ const onClick = async (event) => {
 };
 
 const onChange = async (event) => {
+  if (event.target.matches('select[data-post-default]')) {
+    const id = event.target.dataset.postDefault;
+    await savePostsDefaults({ [id]: event.target.value }, `[data-post-default="${id}"]`);
+    return;
+  }
   if (event.target.matches('select[data-setting]')) {
     await savePreference(
       { [event.target.dataset.setting]: event.target.value },
@@ -769,9 +783,13 @@ const boot = async () => {
     ? snapshot?.status?.sourceRevision === GITHUB_TRENDING_SOURCE_REVISION
     : state.selectedSection === 'models'
       ? snapshot?.status?.descriptionRevision === DESCRIPTION_REVISION
-      : state.selectedSection === 'today'
+      : state.selectedSection === 'posts'
+        ? snapshot?.status?.sourceRevision === POSTS_SOURCE_REVISION
+        : state.selectedSection === 'today'
         ? snapshot?.status?.sources?.code?.sourceRevision === GITHUB_TRENDING_SOURCE_REVISION
           && snapshot?.status?.sources?.models?.descriptionRevision === DESCRIPTION_REVISION
+          && (state.settings.preferences.todayMix.posts === 0
+            || snapshot?.status?.sources?.posts?.sourceRevision === POSTS_SOURCE_REVISION)
         : true;
   if (trustedSnapshot && snapshot?.cards?.length) {
     setState({ cards: snapshot.cards, loading: false, status: { ...snapshot.status, label: snapshot.status?.label || 'Saved daily snapshot' } });

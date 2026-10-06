@@ -1,10 +1,11 @@
 import { fetchSection } from './feeds.js';
+import { DEFAULT_TODAY_MIX } from '../settings.js';
 
 export const STARTUP_SECTIONS = Object.freeze(['today', 'code', 'models', 'datasets', 'papers', 'posts']);
 
 export const createStartupWarmup = ({
   filters,
-  todayMix = { code: 2, models: 1, datasets: 1, papers: 2 },
+  todayMix = DEFAULT_TODAY_MIX,
   userState = {},
 }, fetcher = fetchSection) => {
   const allFilters = Object.fromEntries(Object.entries(filters)

@@ -14,6 +14,7 @@ const control = (id, label, options, type = 'select', placement = 'primary') => 
 const option = (value, label, group) => ({ value, label, ...(group ? { group } : {}) });
 
 export const REMOTE_CACHE_TTL = 6 * 60 * 60 * 1000;
+export const POSTS_CACHE_TTL = 15 * 60 * 1000;
 
 export const MODEL_TASK_OPTIONS = [
   option('all', 'All tasks'),
@@ -366,22 +367,25 @@ export const WORKBENCHES = {
     id: 'posts',
     label: 'Posts',
     title: 'Posts',
-    subtitle: 'AI discussions the Hacker News community is voting up right now.',
-    defaults: { rank: 'hot', time: 'week', topic: 'all' },
+    subtitle: 'AI discussions from Hacker News, ranked by points and recency.',
+    defaults: { time: 'week', topic: 'all', minPoints: '0', minComments: '0' },
     controls: [
-      control('rank', 'Sort', [
-        option('hot', 'Hot'),
-        option('trending', 'Trending'),
-        option('top', 'Top'),
-      ], 'segment'),
       control('time', 'Time range', [
-        option('day', 'Today'),
-        option('week', 'This week'),
-        option('month', 'This month'),
+        option('day', 'Past 24 hours'),
+        option('week', 'Past 7 days'),
+        option('month', 'Past 30 days'),
       ]),
       control('topic', 'AI topic', TOPICS),
+      control('minPoints', 'Minimum points', [
+        option('0', 'Any points'), option('5', '5+ points'), option('20', '20+ points'),
+        option('50', '50+ points'), option('100', '100+ points'),
+      ]),
+      control('minComments', 'Minimum comments', [
+        option('0', 'Any comments'), option('5', '5+ comments'),
+        option('20', '20+ comments'), option('50', '50+ comments'),
+      ]),
     ],
-    cacheTtl: REMOTE_CACHE_TTL,
+    cacheTtl: POSTS_CACHE_TTL,
   },
   library: {
     id: 'library',

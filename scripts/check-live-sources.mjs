@@ -140,17 +140,17 @@ const arxiv = await record('arXiv Atom contract', async () => {
 
 const posts = await record('Hacker News Algolia contract', async () => {
   const results = [];
-  for (const rank of ['hot', 'trending', 'top']) {
-    const response = await fetchChecked(buildPostsUrl({ ...defaults.posts, rank }));
+  for (const time of ['day', 'week', 'month']) {
+    const response = await fetchChecked(buildPostsUrl({ ...defaults.posts, time }));
     const { hits } = await response.json();
-    if (!Array.isArray(hits)) throw new Error(`${rank} returned no hits array`);
+    if (!Array.isArray(hits)) throw new Error(`${time} returned no hits array`);
     const first = hits[0];
     if (first && (!first.objectID || !first.title || !Number.isFinite(first.points) || !Number.isFinite(first.num_comments))) {
-      throw new Error(`${rank} is missing id, title, points, or comments`);
+      throw new Error(`${time} is missing id, title, points, or comments`);
     }
-    results.push({ rank, entries: hits.length });
+    results.push({ time, entries: hits.length });
   }
-  return { sorts: results };
+  return { windows: results };
 });
 
 const linkGroups = [trending, trendingEnglish, trendingChinese, models, datasets, papers, arxiv].filter(Boolean);

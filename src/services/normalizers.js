@@ -406,9 +406,30 @@ export const parseArxivFeed = (xml) => {
   });
 };
 
-const AI_POST_PATTERN = /\b(ai|a\.i\.|llms?|gpt(-?\d[\w.]*)?|chatgpt|openai|anthropic|claude|gemini|mistral|llama|deepseek|copilot|transformers?|neural|machine learning|deep learning|diffusion|embeddings?|rag|agents?|agentic|mcp|inference|fine-?tun\w*|model weights|foundation models?)\b/i;
+const AI_POST_PATTERN = /\b(ai|artificial intelligence|llms?|gpt(-?\d[\w.]*)?|chatgpt|openai|anthropic|claude|gemini|deepseek|copilot|machine learning|deep learning|neural (networks?|models?)|large language models?|language models?|foundation models?|model weights|agentic|text[- ]to[- ](image|video|speech)|image[- ]to[- ]video|(image|video|speech) generat\w*|stable diffusion|diffusion models?|retrieval[- ]augmented|fine[- ]?tun\w*|transformer (models?|architectures?)|mcp (servers?|clients?|tools?)|model context protocol)\b/i;
+const AI_POST_DOMAINS = ['openai.com', 'anthropic.com', 'huggingface.co', 'deepmind.google', 'mistral.ai', 'ai.google.dev', 'stability.ai'];
+const AI_POST_ACRONYMS = /\b(RAG|MCP)\b/;
 
-export const isAiPost = (card) => AI_POST_PATTERN.test(`${card.title} ${card.details?.domain || ''}`);
+const hasAiContext = (text) => AI_POST_PATTERN.test(text) || AI_POST_ACRONYMS.test(text)
+  || (/\bagents?\b/i.test(text) && /\b(prompts?|tokens?|reasoning|memory)\b/i.test(text));
+
+export const isAiPost = (card) => {
+  const domain = card.details?.domain || '';
+  return hasAiContext(card.title || '')
+    || (!domain && hasAiContext(card.summary || ''))
+    || AI_POST_DOMAINS.some((host) => domain === host || domain.endsWith(`.${host}`));
+};
+
+const POST_TOPIC_PATTERNS = {
+  agents: /\b(agents?|agentic|tool[- ]us\w*|mcp|model context protocol)\b/i,
+  llms: /\b(llms?|language models?|transformers?|gpt[\w.-]*|chatgpt|claude|gemini|llama|mistral|deepseek)\b/i,
+  rag: /\b(rag|retrieval|embeddings?)\b/i,
+  evaluation: /\b(evaluat\w*|benchmarks?|evals?)\b/i,
+  multimodal: /\b(multimodal|vision|diffusion|text[- ]to[- ](image|video|speech)|image[- ]to[- ]video|(image|video|speech) generat\w*)\b/i,
+};
+
+export const matchesPostTopic = (card, topic) => !POST_TOPIC_PATTERNS[topic]
+  || POST_TOPIC_PATTERNS[topic].test(`${card.title} ${card.summary || ''}`);
 
 const hostOf = (value) => {
   try { return new URL(value).hostname.replace(/^www\./, ''); } catch { return ''; }

@@ -16,7 +16,7 @@ describe('settings schema', () => {
       filters: { code: { language: 'python' } },
     });
 
-    expect(settings.version).toBe(3);
+    expect(settings.version).toBe(4);
     expect(settings.selectedSection).toBe('models');
     expect(settings.filters.code).toEqual({ time: 'day', spokenLanguage: 'all', language: 'python' });
     expect(settings.filters.models.topic).toBe('rag');
@@ -52,7 +52,7 @@ describe('settings schema', () => {
       density: 'comfortable',
       startupSection: 'papers',
       openLinks: 'foreground',
-      todayMix: { code: 4, models: 0, datasets: 0, papers: 0 },
+      todayMix: { code: 4, models: 0, datasets: 0, papers: 0, posts: 2 },
     });
   });
 
@@ -62,10 +62,29 @@ describe('settings schema', () => {
   });
 
   it('validates Today lane ranges and combined totals', () => {
-    expect(isValidTodayMix({ code: 4, models: 4, datasets: 0, papers: 4 })).toBe(true);
-    expect(isValidTodayMix({ code: 0, models: 0, datasets: 0, papers: 0 })).toBe(false);
-    expect(isValidTodayMix({ code: 5, models: 0, datasets: 0, papers: 0 })).toBe(false);
-    expect(isValidTodayMix({ code: 4, models: 4, datasets: 4, papers: 1 })).toBe(false);
+    expect(isValidTodayMix({ code: 4, models: 4, datasets: 0, papers: 4, posts: 0 })).toBe(true);
+    expect(isValidTodayMix({ code: 0, models: 0, datasets: 0, papers: 0, posts: 0 })).toBe(false);
+    expect(isValidTodayMix({ code: 5, models: 0, datasets: 0, papers: 0, posts: 0 })).toBe(false);
+    expect(isValidTodayMix({ code: 4, models: 4, datasets: 4, papers: 1, posts: 0 })).toBe(false);
+  });
+
+  it('migrates Posts current filters and saved defaults without keeping old modes', () => {
+    const settings = normalizeSettings({
+      filters: { posts: { rank: 'top', time: 'month', topic: 'rag' } },
+      filterDefaults: { posts: { rank: 'trending', time: 'day', topic: 'agents' } },
+    });
+    expect(settings.filters.posts).toEqual({ time: 'month', topic: 'rag', minPoints: '0', minComments: '0' });
+    expect(settings.filterDefaults.posts).toEqual({ time: 'day', topic: 'agents', minPoints: '0', minComments: '0' });
+    expect(normalizeSettings({ filters: { posts: { minPoints: '-1', minComments: 'bad' } } }).filters.posts)
+      .toMatchObject({ minPoints: '0', minComments: '0' });
+  });
+
+  it('adds Posts to legacy Today queues only within their remaining capacity', () => {
+    expect(normalizePreferences().todayMix).toEqual({ code: 2, models: 1, datasets: 1, papers: 2, posts: 2 });
+    expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 3 } }).todayMix)
+      .toEqual({ code: 4, models: 4, datasets: 0, papers: 3, posts: 1 });
+    expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 4 } }).todayMix.posts).toBe(0);
+    expect(normalizePreferences({ todayMix: { code: 2, models: 1, datasets: 1, papers: 2, posts: 0 } }).todayMix.posts).toBe(0);
   });
 
   it('resolves Last used separately from fixed startup workbenches', () => {

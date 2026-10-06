@@ -22,7 +22,7 @@ Scout Lab brings public discovery signals from GitHub, Hugging Face, arXiv, and 
 | **Models** | Models ranked and filtered with Hugging Face-native signals | Hugging Face Models |
 | **Datasets** | Training and evaluation data with source-specific facets | Hugging Face Datasets |
 | **Papers** | Community attention plus a raw research feed | Hugging Face Daily Papers and arXiv |
-| **Posts** | Hot, trending, and top AI discussions from the Hacker News community | Hacker News (Algolia API) |
+| **Posts** | One filtered feed of AI discussions, ranked by points and recency | Hacker News (Algolia API) |
 | **Library** | Favorites and personal notes that remain available locally | Your saved Scout Lab data |
 
 Scout Lab is intentionally not a general search page, bookmark manager, social feed, or general news dashboard. It is a compact research bench designed for repeated daily use.
@@ -31,7 +31,7 @@ Scout Lab is intentionally not a general search page, bookmark manager, social f
 
 ### Today
 
-Today composes a concise briefing from the current source filters. The default mix is two repositories, one model, one dataset, and two papers. You can configure 1-12 cards in Settings, with up to four cards from each source.
+Today composes a concise briefing from the current source filters. The default mix is two repositories, one model, one dataset, two papers, and two Posts. You can configure 1-12 cards in Settings, with up to four cards from each source.
 
 Today has Search and Refresh but no topic or filter bar. Detailed exploration belongs in the source workbenches.
 
@@ -91,11 +91,14 @@ Community papers may show upvotes and comments. Raw arXiv cards show dates and c
 
 Posts surfaces AI discussions from Hacker News through its public Algolia search API. It does not scrape or mix in other communities.
 
-- **Hot** shows AI stories currently on the Hacker News front page, ordered by points decayed by age.
-- **Trending** shows AI stories from the last 24 hours ranked by that same points-per-age velocity.
-- **Top** shows the highest-scoring AI stories for Today, This week, or This month.
+- One list combines recent and high-scoring stories and ranks them by points with age decay. Equal scores break by points, publication time, and item ID.
+- Filter by **Past 24 hours**, **Past 7 days**, or **Past 30 days**, AI topic, minimum points, and minimum comments.
+- **Settings → Posts** edits saved filter defaults and applies them to Posts and Today immediately. The feed's Save defaults and Restore defaults actions remain available.
+- Today includes two Posts by default; its Posts allocation can be set to 0–4 in Settings.
 
-Each card opens the Hacker News discussion and keeps the original article as a secondary link. Points and comment counts come from Hacker News; AI relevance is a keyword match on the title, so an occasional miss is possible.
+Each card opens the Hacker News discussion and keeps a safe HTTPS article link as a secondary action. Favorites and notes stay available in Library and portable backups.
+
+Candidate retrieval merges up to 1,000 high-scoring and 1,000 recent stories, paginating each pool before deduplicating and ranking. This is a bounded sample for busy windows, rather than an exhaustive ranking of all Hacker News submissions. AI and topic relevance use title/text heuristics and trusted AI domains; occasional misses remain possible. Posts and Today queues containing Posts expire with the 15-minute Posts cache.
 
 ### Library
 
@@ -123,9 +126,9 @@ The daily note at the bottom of the page autosaves in the browser as you type.
 
 ## Freshness And Caching
 
-Opening a new tab starts cache-aware requests for Today, Code, Models, Datasets, and Papers. This warms all remote workbenches in the background, not only the visible tab.
+Opening a new tab starts cache-aware requests for Today, Code, Models, Datasets, Papers, and Posts. This warms all remote workbenches in the background, not only the visible tab.
 
-- Remote results are cached for **six hours**.
+- Code, Models, Datasets, and Papers results are cached for **six hours**. Posts uses **15 minutes**; Today expires with its Posts source when Posts are enabled.
 - Cache keys include the workbench and all network-affecting filters.
 - A fresh cache is reused immediately.
 - An expired cache is refreshed.
@@ -146,7 +149,8 @@ Settings include:
 - **Density:** Comfortable or Compact
 - **Start on:** the last-used or a fixed workbench
 - **Open links:** foreground or background tabs
-- **Today mix:** 1-12 cards across Code, Models, Datasets, and Papers
+- **Today mix:** 1-12 cards across Code, Models, Datasets, Papers, and Posts
+- **Posts defaults:** time range, AI topic, minimum points, and minimum comments
 - **Workbench defaults:** save and restore source-filter defaults independently
 
 Appearance preferences apply immediately and are restored before the application renders, avoiding a theme or text-size flash on new tabs. The responsive grid supports desktop, medium, and mobile viewports.
@@ -215,7 +219,7 @@ Scout Lab is a dependency-light, browser-native Manifest V3 extension. Source ad
 ```text
 newtab.html
   src/app.js                 Application state, events, rendering, startup
-  src/workbenches.js         Workbench definitions, controls, six-hour TTL
+  src/workbenches.js         Workbench definitions, controls, source-specific cache TTLs
   src/settings.js            Versioned settings and preference normalization
   src/theme-init.js          Pre-render appearance restoration
   src/services/
@@ -239,7 +243,7 @@ newtab.html
 2. Settings and annotations load from browser storage.
 3. Startup creates one cache-aware request for every remote workbench.
 4. The selected workbench renders a trusted daily snapshot when available.
-5. A stable query key checks the six-hour cache or fetches the public source.
+5. A stable query key checks the source-specific cache or fetches the public source. Today includes source filters in its cache key.
 6. Source adapters normalize results into shared cards.
 7. Missing Code and Models prose is enriched from a bounded, cached README excerpt.
 8. Results update the grid, query cache, and current daily snapshot.
