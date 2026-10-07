@@ -35,7 +35,7 @@ import { getCache, getStaleCache, setCache } from './storage.js';
 const REQUEST_TIMEOUT = 10_000;
 const pendingRequests = new Map();
 export const GITHUB_TRENDING_SOURCE_REVISION = 'github-trending-v4';
-export const POSTS_SOURCE_REVISION = 'unified-posts-v3';
+export const POSTS_SOURCE_REVISION = 'unified-posts-v4';
 export { DESCRIPTION_REVISION };
 
 const fallbackCards = {
@@ -183,7 +183,7 @@ const fetchPosts = async (filters, options) => {
       && matchesPostTopic(card, filters.topic))
     .sort((left, right) => right.details.hotScore - left.details.hotScore
       || right.details.points - left.details.points
-      || Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id)).slice(0, 24);
+      || Date.parse(right.publishedAt) - Date.parse(left.publishedAt) || left.id.localeCompare(right.id));
   const reddit = results[1].status === 'fulfilled' ? results[1].value : null;
   const redditMessage = results[1].status === 'rejected' ? results[1].reason.message : reddit?.message;
   return { cards, cacheTtl: reddit?.pending ? 15_000 : POSTS_CACHE_TTL, status: {

@@ -278,3 +278,23 @@ test('two simultaneous Chrome tabs start only one Bright Data collection', async
   expect(triggers).toBe(1);
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('scout-lab:bright-data-state')).reserved)).toBe(140);
 });
+
+
+test('Posts keeps cards beyond 24 accessible by scrolling and search', async ({ page }) => {
+  const data = Array.from({ length: 60 }, (_, index) => ({
+    objectID: String(100 + index), title: `LLM scrolling post ${index + 1}`,
+    points: 100 - index, num_comments: 10, created_at: iso(1),
+  }));
+  await page.route('https://hn.algolia.com/api/v1/search**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ hits: data, nbPages: 1 }),
+  }));
+  await page.goto('/newtab.html');
+  await expect(page.locator('.grid .card')).toHaveCount(60);
+  const last = page.locator('.grid .card').last();
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+  await expect(last.getByRole('heading')).toHaveText('LLM scrolling post 60');
+  await page.getByLabel('Search this tab').fill('scrolling post 60');
+  await expect(page.locator('.grid .card')).toHaveCount(1);
+  await expect(page.locator('.grid .card h3')).toHaveText('LLM scrolling post 60');
+});

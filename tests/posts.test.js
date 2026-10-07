@@ -44,11 +44,11 @@ describe('unified Posts feed', () => {
     expect(result.cards.map(({ id }) => id)).toEqual(['hn:good']);
   });
 
-  it('breaks equal scores deterministically and retains only 24 unique cards', async () => {
+  it('breaks equal scores deterministically and retains all matching unique cards beyond 24', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-05T00:00:00Z'));
     vi.stubGlobal('fetch', sourceMock(Array.from({ length: 30 }, (_, i) => hit(`${100 + i}`)).reverse()));
     const result = await fetchSection('posts', createDefaultFilters().posts);
-    expect(result.cards).toHaveLength(24);
+    expect(result.cards).toHaveLength(30);
     expect(result.cards[0].id).toBe('hn:100');
   });
 

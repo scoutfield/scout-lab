@@ -182,7 +182,9 @@ const statusSourceHtml = () => (
 
 const cardsHtml = (filters, cards) => {
   if (cards.length) {
-    return cards.slice(0, state.selectedSection === 'today' ? 40 : 24).map((card) => renderCard(card, {
+    const visibleCards = state.selectedSection === 'posts' ? cards
+      : cards.slice(0, state.selectedSection === 'today' ? 40 : 24);
+    return visibleCards.map((card) => renderCard(card, {
       user: state.userState,
       commentingId: state.commentingId,
     })).join('');
