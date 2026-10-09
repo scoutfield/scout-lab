@@ -92,6 +92,15 @@ export const getArchiveStatus = async () => {
   return { connected, name: handle.name };
 };
 
+export const getArchiveFolder = async () => {
+  const handle = await getHandle();
+  if (!handle) throw new Error('Choose your shared iCloud Drive folder first.');
+  if (!(await verifyPermission(handle, 'readwrite'))) {
+    throw new Error('Reconnect your iCloud Drive folder to use shared credentials.');
+  }
+  return handle;
+};
+
 export const writeArchiveToHandle = async (handle, date, content) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Archive date must use YYYY-MM-DD.');
   if (typeof content !== 'string') throw new Error('Archive content must be text.');

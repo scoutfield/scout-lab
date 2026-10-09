@@ -15,6 +15,7 @@ const readState = () => {
 };
 const saveState = (state) => localStorage.setItem(STATE_KEY, JSON.stringify(state));
 const token = () => localStorage.getItem(TOKEN_KEY) || '';
+export const getBrightDataToken = () => token();
 export const setBrightDataToken = (value) => {
   const next = String(value || '').trim();
   if (!next || /\s/.test(next)) throw new Error('Enter a valid Bright Data API token.');

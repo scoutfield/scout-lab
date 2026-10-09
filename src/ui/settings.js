@@ -163,7 +163,18 @@ export const renderSettingsDrawer = ({
               <button type="button" class="settings-secondary" data-command="connect-bright-data">Save token and load Reddit</button>
               ${brightData.connected ? '<button type="button" class="settings-secondary" data-command="disconnect-bright-data">Disconnect Bright Data</button>' : ''}
             </div>
-            <p class="settings-help"><a href="https://brightdata.com/cp/setting/users" target="_blank" rel="noopener noreferrer">Get your API token</a>. Token stays on this device and is excluded from backups. One collection daily, up to 140 posts total. Keep your Bright Data account unfunded to prevent charges. Other apps share its free allowance.</p>
+            <p class="settings-help"><a href="https://brightdata.com/cp/setting/users" target="_blank" rel="noopener noreferrer">Get your API token</a>. Token is saved locally and excluded from ordinary backups. You can share an encrypted copy through your iCloud folder below. One collection daily, up to 140 posts total per browser. Your devices and other apps share the Bright Data account allowance.</p>
+            <h4>Share token through iCloud</h4>
+            <p class="settings-help">Choose the same iCloud Drive folder using the left sidebar on each computer. Save here once, then load on your other devices after iCloud syncs. On Windows, install iCloud for Windows and enable iCloud Drive first. This is a manual transfer; future token changes need another save and load.</p>
+            <label class="settings-field">
+              <span class="settings-label">Shared token passphrase</span>
+              <input type="password" data-credential-passphrase aria-label="Shared token passphrase" autocomplete="off" minlength="12" placeholder="At least 12 characters">
+            </label>
+            <div class="settings-actions">
+              <button type="button" class="settings-secondary" data-command="save-icloud-token" ${brightData.connected ? '' : 'disabled'}>Save token to iCloud</button>
+              <button type="button" class="settings-secondary" data-command="load-icloud-token">Load token from iCloud</button>
+            </div>
+            <p class="settings-help">Use the same strong passphrase on every computer. It is never saved or synced. Keep it in your password manager; a lost passphrase cannot unlock the file. Disconnect removes only this device's token; the shared file remains in your folder.</p>
             <label class="settings-field">
               <span class="settings-label">Subreddits</span>
               <textarea data-reddit-communities aria-label="Subreddits" rows="3">${escapeHtml(preferences.redditCommunities.join(', '))}</textarea>

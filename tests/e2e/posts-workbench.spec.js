@@ -305,3 +305,51 @@ test('Posts keeps cards beyond 24 accessible by scrolling and search', async ({ 
   await expect(page.locator('.grid .card')).toHaveCount(1);
   await expect(page.locator('.grid .card h3')).toHaveText('LLM scrolling post 60');
 });
+
+test('encrypted iCloud token can be saved and loaded without persisting its passphrase', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('scout-lab:bright-data-token', 'test-only-shared-token');
+    const root = {
+      name: 'Shared test folder', queryPermission: async () => 'granted',
+      getFileHandle: async (_name, options) => {
+        if (!window.testCredentialFile && !options?.create) throw new DOMException('Missing', 'NotFoundError');
+        return {
+          getFile: async () => new File([window.testCredentialFile], 'scout-lab-credentials.json'),
+          createWritable: async () => {
+            let content;
+            return { write: async (value) => { content = value; }, close: async () => { window.testCredentialFile = content; }, abort: async () => {} };
+          },
+        };
+      },
+    };
+    const request = (result) => {
+      const request = { result };
+      queueMicrotask(() => request.onsuccess?.());
+      return request;
+    };
+    Object.defineProperty(window, 'indexedDB', { configurable: true, value: {
+      open: () => request({ transaction: () => ({ objectStore: () => ({ get: () => request(root) }) }) }),
+    } });
+  });
+  await mockPosts(page);
+  await page.goto('/newtab.html');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByLabel('Shared token passphrase').fill('test-only shared passphrase');
+  await page.getByRole('button', { name: 'Save token to iCloud', exact: true }).click();
+  await expect(page.getByText('Encrypted token saved to your shared folder.', { exact: false })).toBeVisible();
+  await expect(page.getByLabel('Shared token passphrase')).toHaveValue('');
+  const encrypted = await page.evaluate(() => window.testCredentialFile);
+  expect(encrypted).not.toContain('test-only-shared-token');
+  expect(encrypted).not.toContain('test-only shared passphrase');
+  await page.evaluate(() => localStorage.removeItem('scout-lab:bright-data-token'));
+  await page.getByLabel('Shared token passphrase').fill('incorrect shared passphrase');
+  await page.getByRole('button', { name: 'Load token from iCloud', exact: true }).click();
+  await expect(page.getByText('Could not unlock the credential file.', { exact: false })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('scout-lab:bright-data-token'))).toBeNull();
+  await page.getByLabel('Shared token passphrase').fill('test-only shared passphrase');
+  await page.getByRole('button', { name: 'Load token from iCloud', exact: true }).click();
+  await expect(page.getByText('Shared token unlocked and saved on this device.', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Shared token passphrase')).toHaveValue('');
+  expect(await page.evaluate(() => localStorage.getItem('scout-lab:bright-data-token'))).toBe('test-only-shared-token');
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('test-only shared passphrase');
+});

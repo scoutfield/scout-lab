@@ -14,6 +14,8 @@ Scout Lab keeps preferences, favorites, hidden-item state, comments, daily notes
 
 Users may explicitly export a backup or choose a local or iCloud Drive folder for Markdown archives. Scout Lab writes to that folder only after the user selects it and grants browser permission. These files remain under the user's control and are not sent to the publisher.
 
+Users can explicitly save an encrypted Bright Data token file to their chosen iCloud Drive folder and load it on another computer. The shared passphrase is never saved or synced. After unlocking, the token is saved locally on that Mac. Disconnecting removes the local token only; users control deletion of the shared file.
+
 ## Public Source Requests
 
 Scout Lab requests public display data from:

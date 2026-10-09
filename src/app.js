@@ -1,6 +1,7 @@
-import { setBrightDataToken, disconnectBrightData } from './services/brightData.js';
+import { setBrightDataToken, disconnectBrightData, getBrightDataToken } from './services/brightData.js';
+import { loadCredentialFromFolder, saveCredentialToFolder } from './services/credentialFile.js';
 import { parseRedditCommunities } from './settings.js';
-import { connectArchiveFolder, getArchiveStatus, writeDailyArchive } from './services/archive.js';
+import { connectArchiveFolder, getArchiveStatus, writeDailyArchive, getArchiveFolder } from './services/archive.js';
 import { buildDailyArchive } from './services/archiveFormat.js';
 import {
   backupFileName,
@@ -515,7 +516,35 @@ const applyPendingImport = async () => {
   }
 };
 
+let credentialOperationPending = false;
 const handleCommand = async (command) => {
+  if (['save-icloud-token', 'load-icloud-token'].includes(command)) {
+    if (credentialOperationPending) return;
+    const field = document.querySelector('[data-credential-passphrase]');
+    const passphrase = field.value;
+    field.value = '';
+    credentialOperationPending = true;
+    document.querySelectorAll('[data-command="save-icloud-token"], [data-command="load-icloud-token"]')
+      .forEach((button) => { button.disabled = true; });
+    try {
+      const folder = await getArchiveFolder();
+      if (command === 'save-icloud-token') {
+        await saveCredentialToFolder(folder, getBrightDataToken(), passphrase);
+        setState({ settingsError: '', settingsNotice: 'Encrypted token saved to your shared folder. Wait for iCloud to sync, then load it on your other device.' });
+      } else {
+        const token = await loadCredentialFromFolder(folder, passphrase);
+        setBrightDataToken(token);
+        setState({ settingsError: '', settingsNotice: 'Shared token unlocked and saved on this device.' });
+      }
+    } catch (error) {
+      setState({ settingsError: error.message, settingsNotice: '' });
+    } finally {
+      credentialOperationPending = false;
+      render();
+      focusAfterRender(`[data-command="${command}"]`);
+    }
+    return;
+  }
   if (['connect-bright-data', 'disconnect-bright-data'].includes(command)) {
     try {
       if (command === 'connect-bright-data') setBrightDataToken(document.querySelector('[data-bright-data-token]').value);

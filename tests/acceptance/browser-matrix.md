@@ -28,6 +28,9 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 - [ ] No unexpected horizontal page overflow, clipped controls, overlapping text, or layout shift appears.
 - [ ] Keyboard navigation reaches every interactive control with a visible focus state.
 
+- [ ] Saving an iCloud token writes only ciphertext; loading with the wrong passphrase leaves the local token unchanged. Loading with the correct passphrase connects the device, and the passphrase field clears after each attempt.
+- [ ] An existing credential file cannot be overwritten with an incorrect passphrase. Ordinary backup and Markdown export still exclude credentials.
+
 ## Source Workbenches
 
 - [ ] Automated Code smoke tests pass: `npm run test:e2e`.

@@ -319,3 +319,21 @@ Posts combines Hacker News and public Reddit discussions in a single list. Setti
 Settings → Posts accepts a Bright Data API token, saved locally and excluded from backups. Reddit discovery runs at most once per 24 hours while Scout Lab is open. An unfinished collection resumes in later new tabs; the selected feed checks running jobs automatically. Filters and Refresh reuse the daily collection. Requests use Hot sorting, at most 20 posts per subreddit and 140 total per collection, with a local 4,500-record monthly reservation cap. For longer subreddit lists, each gets fewer posts. Changes to the list take effect at the next collection.
 
 The local cap only controls Scout Lab on this browser profile. Other devices and apps share the account allowance. Keep the Bright Data account unfunded for its provider-side hard stop. Clearing extension storage also clears local usage accounting. Tokens never enter caches, snapshots, or exported backups. Disconnect removes the token.
+
+## Chrome on Windows and macOS
+
+The same extension package runs in desktop Chrome on Windows and macOS. No native companion application is required for Scout Lab. Folder selection uses Chrome's File System Access API; folder permissions are granted separately in each browser profile.
+
+For iCloud sharing on Windows, install iCloud for Windows, sign into the same Apple Account, and enable iCloud Drive. Select the synced folder from File Explorer in Chrome's folder picker. Download the credential file locally before loading it (use **Always keep on this device** if needed). On macOS, select the matching folder inside iCloud Drive.
+
+References: [Chrome folder access](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access), [iCloud Drive on Windows](https://support.apple.com/guide/icloud-windows/icwddbc813bd/icloud).
+
+## Share a Bright Data token between computers
+
+1. On each computer, choose the same folder inside iCloud Drive using Scout Lab's left sidebar. Each Chrome profile must grant folder access separately.
+2. On the first computer, save your API token in Settings → Posts. Enter a strong shared passphrase of at least 12 characters, then click **Save token to iCloud**.
+3. Wait for iCloud Drive to sync `scout-lab-credentials.json`. On another computer, enter the same passphrase and click **Load token from iCloud**.
+
+This is an explicit save/load transfer, not automatic background synchronization. Token changes require another save and load. The file uses AES-256-GCM with a fresh random salt and IV, and a PBKDF2-SHA-256 key derived with 600,000 iterations. The passphrase is never persisted. An existing file must unlock successfully before it can be replaced. Keep the passphrase in your password manager.
+
+Ordinary JSON backups and daily Markdown archives still exclude the token. Disconnect removes only the current Chrome profile's token; delete the shared file yourself if it is no longer needed. All devices use the same Bright Data account allowance, while Scout Lab's daily/monthly guards are local to each browser; they do not coordinate account-wide quotas.
