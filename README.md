@@ -278,7 +278,7 @@ Create and smoke-test the versioned Chrome Web Store archive:
 npm run test:release
 ```
 
-For release `1.0.5`, the package is written to `dist/scout-lab-1.0.5.zip`. The smoke test loads that ZIP as an actual extension, opens `chrome://newtab`, and verifies live GitHub Trending order and period-star parity.
+For release `1.1.0`, the package is written to `dist/scout-lab-1.1.0.zip`. The smoke test loads that ZIP as an actual extension, opens `chrome://newtab`, and verifies live GitHub Trending order and period-star parity.
 
 The repository keeps unit, integration, real-browser, live-source, package, and acceptance tests under version control. See [Testing Scout Lab](./docs/testing.md) for the test map, CI behavior, coverage requirements, and maintenance rules.
 

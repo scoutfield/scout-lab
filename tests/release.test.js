@@ -12,13 +12,13 @@ const pngSize = async (path) => {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 };
 
-describe('Chrome Web Store 1.0.5 release contract', () => {
+describe('Chrome Web Store 1.1.0 release contract', () => {
   it('declares the release version and packaged icons', async () => {
     const manifest = await readJson('manifest.json');
     const pkg = await readJson('package.json');
 
-    expect(manifest.version).toBe('1.0.5');
-    expect(pkg.version).toBe('1.0.5');
+    expect(manifest.version).toBe('1.1.0');
+    expect(pkg.version).toBe('1.1.0');
     expect(manifest.icons).toEqual({
       16: 'assets/icons/icon-16.png',
       32: 'assets/icons/icon-32.png',
@@ -73,7 +73,7 @@ describe('Chrome Web Store 1.0.5 release contract', () => {
     const readme = await readText('README.md');
 
     expect(pkg.scripts.package).toBe('node scripts/package-extension.mjs');
-    await expect(readText('scripts/package-extension.mjs')).resolves.toContain('scout-lab-1.0.5.zip');
+    await expect(readText('scripts/package-extension.mjs')).resolves.toContain('scout-lab-1.1.0.zip');
     expect(readme).not.toMatch(/curated learning|learning progress|progress filters/i);
   });
 });

@@ -6,21 +6,22 @@
 - Category: Developer Tools
 - Language: English
 - Summary: A focused AI discovery workspace for every new tab.
-- Homepage: https://github.com/heshaojian/scout-lab
-- Support: https://github.com/heshaojian/scout-lab/issues
-- Privacy: https://heshaojian.github.io/scout-lab/privacy.html
+- Homepage: https://github.com/scoutfield/scout-lab
+- Support: https://github.com/scoutfield/scout-lab/issues
+- Privacy: https://scoutfield.github.io/scout-lab/privacy.html
 
 ## Description
 
-Scout Lab turns every new tab into a calm AI discovery workspace. Scan current open-source code, models, datasets, and research without juggling separate feeds.
+Scout Lab turns every new tab into a calm AI discovery workspace. Scan current open-source code, models, datasets, research, and community posts without juggling separate feeds.
 
 Features:
 
-- A concise Today queue across all sources
+- A configurable Today queue with up to 40 cards across all sources
 - GitHub Trending repositories with time, spoken-language, programming-language, and topic filters
 - Hugging Face model and dataset discovery with source-specific filters and sorting
 - Hugging Face Daily Papers and raw arXiv research
-- Hot, trending, and top AI posts from Hacker News
+- One scrollable Posts feed with Hacker News and optional Reddit discussions, plus time, topic, points, and comments filters
+- Custom subreddit selection and optional Bright Data connection for Reddit
 - A local Library for favorites and personal notes
 - Comfortable and compact layouts with light, dark, and system themes
 - Local backup and optional archive export to a folder you choose
@@ -43,6 +44,9 @@ Permission justifications:
 - `https://huggingface.co/*`: Retrieves public model, dataset, and Daily Papers metadata displayed in Scout Lab.
 - `https://export.arxiv.org/*`: Retrieves public arXiv Atom data displayed in the Papers workbench.
 - `https://hn.algolia.com/*`: Retrieves public Hacker News AI posts displayed in the Posts workbench.
+
+- `https://www.reddit.com/*`: Retrieves public discussions from selected subreddits.
+- `https://api.brightdata.com/*`: Collects public Reddit posts using the user-configured Bright Data token.
 
 Certifications:
 

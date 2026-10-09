@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const root = process.cwd();
-const archive = resolve(root, 'dist/scout-lab-1.0.5.zip');
+const archive = resolve(root, 'dist/scout-lab-1.1.0.zip');
 
 describe('Chrome Web Store package', () => {
   it('contains the complete runtime and no development files', async () => {
@@ -18,8 +18,8 @@ describe('Chrome Web Store package', () => {
     expect(entries).toContain('src/app.js');
     expect(entries).toContain('assets/icons/icon-128.png');
     expect(entries.some((path) => /(^|\/)(tests?|docs?|scripts?|node_modules|coverage|store)(\/|$)/.test(path))).toBe(false);
-    expect(manifest.version).toBe('1.0.5');
-    expect(newTab).toContain('src/app.js?v=1.0.5');
+    expect(manifest.version).toBe('1.1.0');
+    expect(newTab).toContain('src/app.js?v=1.1.0');
 
     for (const path of entries.filter((entry) => entry.endsWith('.js'))) {
       const source = execFileSync('unzip', ['-p', archive, path], { encoding: 'utf8' });

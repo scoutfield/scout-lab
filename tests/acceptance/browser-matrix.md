@@ -19,6 +19,7 @@ For theme or layout changes, repeat the affected cases with System, Light, and D
 - [ ] Today, Code, Models, Datasets, Papers, Posts, and Library tabs open the correct workbench; Learn is absent.
 - [ ] Today shows Search and Refresh without Topic, Reset filters, or an empty filter bar.
 - [ ] The active tab, page title, source label, filters, and grid update together.
+- [ ] Switching a left-side section from a scrolled feed immediately returns the page to the top, including returning to a cached Posts feed.
 - [ ] Search filters the current cards and clearing search restores them.
 - [ ] Reset filters restores the saved defaults for the current workbench.
 - [ ] Save as default persists current filters after reload.

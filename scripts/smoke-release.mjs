@@ -8,7 +8,7 @@ import { JSDOM } from 'jsdom';
 import { parseGithubTrending } from '../src/services/normalizers.js';
 
 const root = process.cwd();
-const archive = resolve(root, 'dist/scout-lab-1.0.5.zip');
+const archive = resolve(root, 'dist/scout-lab-1.1.0.zip');
 const temporaryRoot = await mkdtemp(resolve(tmpdir(), 'scout-lab-release-'));
 const extensionPath = resolve(temporaryRoot, 'extension');
 const profilePath = resolve(temporaryRoot, 'profile');

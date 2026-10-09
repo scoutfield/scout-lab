@@ -1,6 +1,6 @@
 # Scout Lab Privacy Policy
 
-Effective date: August 29, 2026
+Effective date: October 9, 2026
 
 Scout Lab replaces Chrome's new-tab page with a workspace for discovering public AI code, models, datasets, and research papers.
 
@@ -22,8 +22,11 @@ Scout Lab requests public display data from:
 - Hugging Face for models, datasets, and Daily Papers
 - arXiv for research-paper metadata
 - Hacker News (via the Algolia search API) for AI community posts
+- Reddit discussions from selected subreddits, optionally collected through Bright Data
 
 Requests contain only the source filters needed to retrieve the selected public results. Scout Lab does not send favorites, comments, notes, settings, backup content, or archive content to these sources.
+
+When users connect Bright Data, the API token is stored locally, excluded from backups, and sent only to api.brightdata.com. Selected public subreddit URLs are sent to Bright Data. Source requests omit browser cookies.
 
 Those services process requests under their own privacy policies.
 
@@ -43,4 +46,4 @@ Material changes to this policy will be published in the Scout Lab repository an
 
 Questions and support requests can be submitted at:
 
-https://github.com/heshaojian/scout-lab/issues
+https://github.com/scoutfield/scout-lab/issues
