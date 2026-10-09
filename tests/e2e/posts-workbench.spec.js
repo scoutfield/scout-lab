@@ -294,6 +294,13 @@ test('Posts keeps cards beyond 24 accessible by scrolling and search', async ({ 
   await last.scrollIntoViewIfNeeded();
   await expect(last).toBeInViewport();
   await expect(last.getByRole('heading')).toHaveText('LLM scrolling post 60');
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await page.locator('[data-section="today"]').click();
+  await expect(page.locator('.grid .card')).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.locator('[data-section="posts"]').click();
+  await expect(page.locator('.grid .card')).toHaveCount(60);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await page.getByLabel('Search this tab').fill('scrolling post 60');
   await expect(page.locator('.grid .card')).toHaveCount(1);
   await expect(page.locator('.grid .card h3')).toHaveText('LLM scrolling post 60');

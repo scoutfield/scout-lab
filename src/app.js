@@ -695,6 +695,7 @@ const onClick = async (event) => {
     const selectedSection = sectionButton.dataset.section;
     const nextSettings = setSettings({ selectedSection });
     setState({ settings: nextSettings, selectedSection, search: '', commentingId: null, cards: [], status: { label: 'Loading sources', stale: false } });
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     await load({ clear: true });
     return;
   }
