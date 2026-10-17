@@ -21,9 +21,54 @@ const safeParse = (value, fallback = null) => {
 
 const read = (key, fallback = null) => safeParse(localStorage.getItem(`${STORE_PREFIX}:${key}`), fallback);
 
+const isQuotaError = (error) => (
+  error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+  || error?.code === 22 || error?.code === 1014
+);
+
+const CACHE_KEY_PREFIX = `${STORE_PREFIX}:cache:`;
+
+// Feed caches are regenerable, so they are what gives way when the browser quota is reached.
+const evictCaches = (keep) => {
+  const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+    .filter((key) => key?.startsWith(CACHE_KEY_PREFIX) && key !== keep);
+  const expired = keys.filter((key) => {
+    const entry = safeParse(localStorage.getItem(key));
+    return !entry?.expiresAt || Date.now() > entry.expiresAt;
+  });
+  (expired.length ? expired : keys).forEach((key) => localStorage.removeItem(key));
+};
+
 const write = (key, value) => {
-  localStorage.setItem(`${STORE_PREFIX}:${key}`, JSON.stringify(value));
+  const fullKey = `${STORE_PREFIX}:${key}`;
+  const json = JSON.stringify(value);
+  try {
+    localStorage.setItem(fullKey, json);
+  } catch (error) {
+    if (!isQuotaError(error)) throw error;
+    // Drop expired caches first, then every cache, retrying after each step.
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      evictCaches(fullKey);
+      try {
+        localStorage.setItem(fullKey, json);
+        return value;
+      } catch (retryError) {
+        if (!isQuotaError(retryError)) throw retryError;
+      }
+    }
+    throw error;
+  }
   return value;
+};
+
+// Derived data (feed caches, daily snapshots) must never break a load when storage is full.
+const writeDerived = (key, value) => {
+  try {
+    return write(key, value);
+  } catch (error) {
+    if (isQuotaError(error)) return value;
+    throw error;
+  }
 };
 
 const remove = (key) => localStorage.removeItem(`${STORE_PREFIX}:${key}`);
@@ -38,7 +83,7 @@ export const getCache = (query) => {
 
 export const getStaleCache = (query) => read(queryCacheKey(query));
 
-export const setCache = (query, cards, ttl = ONE_HOUR, metadata = {}) => write(queryCacheKey(query), {
+export const setCache = (query, cards, ttl = ONE_HOUR, metadata = {}) => writeDerived(queryCacheKey(query), {
   cards,
   ...metadata,
   expiresAt: Number.isFinite(ttl) ? Date.now() + ttl : Number.MAX_SAFE_INTEGER,
@@ -61,7 +106,7 @@ export const setUserItemState = (itemId, patch, card, now = new Date()) => {
 export const getDailyNote = (dateKey) => read(`note:${dateKey}`, '');
 export const setDailyNote = (dateKey, note) => write(`note:${dateKey}`, note);
 export const getSnapshot = (dateKey) => read(`snapshot:${dateKey}`, null);
-export const setSnapshot = (dateKey, snapshot) => write(`snapshot:${dateKey}`, snapshot);
+export const setSnapshot = (dateKey, snapshot) => writeDerived(`snapshot:${dateKey}`, snapshot);
 
 export const getSettings = () => {
   return normalizeSettings(read('settings', {}));

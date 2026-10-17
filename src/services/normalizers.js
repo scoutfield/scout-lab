@@ -45,6 +45,10 @@ const baseCard = ({ id, source, section, type, title, url, summary, tags = [], o
   details: {},
 });
 
+export const countGithubTrendingRows = (html) => (
+  new DOMParser().parseFromString(html, 'text/html').querySelectorAll('article.Box-row').length
+);
+
 export const parseGithubTrending = (html, time = 'week') => {
   const document = new DOMParser().parseFromString(html, 'text/html');
   const timeLabel = { day: 'today', week: 'this week', month: 'this month' }[time] || 'this week';
@@ -366,6 +370,12 @@ export const normalizeCommunityPaper = (entry) => {
       comments,
     },
   };
+};
+
+export const arxivTotalResults = (xml) => {
+  const total = Number(new DOMParser().parseFromString(xml, 'application/xml')
+    .querySelector('totalResults')?.textContent);
+  return Number.isFinite(total) ? total : 0;
 };
 
 export const parseArxivFeed = (xml) => {

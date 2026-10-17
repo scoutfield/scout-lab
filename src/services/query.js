@@ -1,3 +1,6 @@
+// Hugging Face and arXiv list endpoints accept this many rows per request.
+export const FEED_PAGE_SIZE = 100;
+
 export const TOPIC_TERMS = {
   all: [],
   agents: ['agent', 'tool-use', 'workflow'],
@@ -124,7 +127,7 @@ export const buildModelsUrl = (filters) => {
   const params = new URLSearchParams({
     sort: sort.field,
     direction: sort.direction,
-    limit: '48',
+    limit: `${FEED_PAGE_SIZE}`,
   });
   if (filters.task !== 'all') params.set('pipeline_tag', filters.task);
   if (MODEL_SIZE[filters.size]) params.set('num_parameters', MODEL_SIZE[filters.size]);
@@ -158,7 +161,7 @@ const buildDatasetsApiUrl = (filters) => {
   const params = new URLSearchParams({
     sort: sort.field,
     direction: sort.direction,
-    limit: '48',
+    limit: `${FEED_PAGE_SIZE}`,
   });
   appendDatasetApiFilters(params, filters);
   appendExpand(params, [
@@ -198,10 +201,11 @@ export const resolveDatasetsRequestUrl = (request, location = globalThis.locatio
   request.kind === 'page' && isLoopbackPreview(location) ? request.previewUrl : request.url
 );
 
-export const buildCommunityPapersUrl = (filters, now = new Date()) => {
+export const buildCommunityPapersUrl = (filters, now = new Date(), page = 0) => {
   const params = new URLSearchParams({
-    limit: '100',
+    limit: `${FEED_PAGE_SIZE}`,
   });
+  if (page > 0) params.set('p', `${page}`);
   if (filters.time === 'day') params.set('date', dateKey(now));
   if (filters.time === 'week') params.set('week', isoWeek(now));
   if (filters.time === 'month') params.set('month', dateKey(now).slice(0, 7));
@@ -241,7 +245,7 @@ export const buildArxivRequest = (filters, now = new Date()) => {
   const params = new URLSearchParams({
     search_query: clauses.join(' AND '),
     start: '0',
-    max_results: '24',
+    max_results: `${FEED_PAGE_SIZE}`,
     sortBy: filters.sort === 'relevance' ? 'relevance' : 'submittedDate',
     sortOrder: 'descending',
   });

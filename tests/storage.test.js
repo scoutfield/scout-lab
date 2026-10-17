@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   getCache,
@@ -130,5 +130,64 @@ describe('query-aware storage', () => {
   it('recovers from malformed stored JSON', () => {
     localStorage.setItem('scout-lab:settings', '{bad json');
     expect(getSettings().selectedSection).toBe('today');
+  });
+});
+
+describe('storage under a full browser quota', () => {
+  const LIMIT = 4_000;
+  const used = () => Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+    .reduce((sum, key) => sum + key.length + localStorage.getItem(key).length, 0);
+
+  beforeEach(() => {
+    const realSetItem = localStorage.setItem;
+    vi.spyOn(localStorage, 'setItem').mockImplementation((key, value) => {
+      const existing = localStorage.getItem(key);
+      const growth = key.length + `${value}`.length - (existing === null ? 0 : key.length + existing.length);
+      if (used() + growth > LIMIT) throw new DOMException('full', 'QuotaExceededError');
+      return realSetItem(key, value);
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  const filler = (name, ttl, size = 900) => setCache({ name }, [{ id: name, pad: 'x'.repeat(size) }], ttl);
+
+  it('evicts expired feed caches to make room for a new one', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-04T00:00:00Z'));
+    filler('old-a', 1_000); filler('old-b', 1_000); filler('old-c', 1_000);
+    vi.advanceTimersByTime(5_000);
+
+    setCache({ name: 'fresh' }, [{ id: 'fresh', pad: 'y'.repeat(1_500) }], 60_000);
+
+    expect(getCache({ name: 'fresh' })?.cards[0].id).toBe('fresh');
+    expect(getCache({ name: 'old-a' })).toBeNull();
+  });
+
+  it('never throws when a feed cache cannot fit at all', () => {
+    expect(() => setCache({ name: 'huge' }, [{ pad: 'z'.repeat(LIMIT * 2) }], 60_000)).not.toThrow();
+    expect(getCache({ name: 'huge' })).toBeNull();
+  });
+
+  it('never throws when a daily snapshot cannot fit', () => {
+    expect(() => setSnapshot('2026-10-04', { cards: [{ pad: 'z'.repeat(LIMIT * 2) }] })).not.toThrow();
+  });
+
+  it('gives up feed caches before failing to save a favorite', () => {
+    // Together these leave too little room for the favorite until a cache is evicted.
+    filler('live-a', 60_000, 1_100); filler('live-b', 60_000, 1_100); filler('live-c', 60_000, 1_100);
+    expect(getCache({ name: 'live-a' })).not.toBeNull();
+
+    setUserItemState('github:example/repo', { favorite: true }, {
+      id: 'github:example/repo', source: 'github', section: 'code', type: 'Code', title: 'example/repo',
+      url: 'https://github.com/example/repo', summary: 'keep me', tags: [],
+    });
+
+    expect(getUserState()['github:example/repo'].favorite).toBe(true);
+    expect(getCache({ name: 'live-a' })).toBeNull();
+  });
+
+  it('still reports a failure for durable data that cannot fit even after evicting caches', () => {
+    expect(() => setDailyNote('2026-10-04', 'n'.repeat(LIMIT * 2))).toThrow(/full|quota/i);
   });
 });

@@ -11,6 +11,8 @@ import {
   isAiPost,
   groupModelCards,
   filterModelsByUpdated,
+  arxivTotalResults,
+  countGithubTrendingRows,
   parseArxivFeed,
   parseGithubTrending,
   parseHuggingFaceDatasetsPage,
@@ -260,5 +262,20 @@ describe('Hacker News posts', () => {
     }
     expect(isAiPost(normalizePost({ ...hit, title: 'Our new model', url: 'https://openai.com/news/model' }, now))).toBe(true);
     expect(isAiPost(normalizePost({ ...hit, title: 'Our new model', url: 'https://openai.com.evil.example/model' }, now))).toBe(false);
+  });
+});
+
+describe('feed totals', () => {
+  it('reads the arXiv total match count and tolerates a missing one', () => {
+    const feed = '<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">'
+      + '<opensearch:totalResults>2222</opensearch:totalResults></feed>';
+    expect(arxivTotalResults(feed)).toBe(2222);
+    expect(arxivTotalResults('<feed xmlns="http://www.w3.org/2005/Atom"></feed>')).toBe(0);
+  });
+
+  it('counts the repository rows on a Trending page', async () => {
+    const html = await fixture('github-trending.html');
+    expect(countGithubTrendingRows(html)).toBe(2);
+    expect(countGithubTrendingRows('<html><body></body></html>')).toBe(0);
   });
 });

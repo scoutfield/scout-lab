@@ -170,7 +170,8 @@ const statusMessage = () => {
   if (state.status.message) return state.status.message;
   if (state.selectedSection === 'code' && state.status.updatedAt) {
     const updatedAt = new Date(state.status.updatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    return `${state.status.label || 'GitHub Trending'} · Live · Updated ${updatedAt}`;
+    const count = state.status.parsedRows ? ` · ${state.status.parsedRows} repositories` : '';
+    return `${state.status.label || 'GitHub Trending'}${count} · Live · Updated ${updatedAt}`;
   }
   return state.status.label || 'Ready';
 };
@@ -183,8 +184,8 @@ const statusSourceHtml = () => (
 
 const cardsHtml = (filters, cards) => {
   if (cards.length) {
-    const visibleCards = state.selectedSection === 'posts' ? cards
-      : cards.slice(0, state.selectedSection === 'today' ? 40 : 24);
+    // Source tabs show every card their feed returned; Today is already bounded by its mix.
+    const visibleCards = state.selectedSection === 'today' ? cards.slice(0, 40) : cards;
     return visibleCards.map((card) => renderCard(card, {
       user: state.userState,
       commentingId: state.commentingId,
@@ -297,6 +298,10 @@ const render = () => {
   document.body.classList.toggle('settings-open', state.settingsOpen);
 };
 
+// Daily snapshots are kept forever, so the enlarged source feeds store only their first screen.
+const SNAPSHOT_FEED_LIMIT = 24;
+const SNAPSHOT_LIMITED_SECTIONS = new Set(['code', 'models', 'datasets', 'papers']);
+
 const snapshotResult = (section, filters, result) => {
   const date = todayKey();
   const current = getSnapshot(date) || { date, sections: {} };
@@ -305,7 +310,7 @@ const snapshotResult = (section, filters, result) => {
     sections: {
       ...(current.sections || {}),
       [section]: {
-        cards: result.cards,
+        cards: SNAPSHOT_LIMITED_SECTIONS.has(section) ? result.cards.slice(0, SNAPSHOT_FEED_LIMIT) : result.cards,
         filters,
         status: result.status,
         savedAt: new Date().toISOString(),

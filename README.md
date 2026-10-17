@@ -124,6 +124,20 @@ Every source card shares the same interaction model:
 
 The daily note at the bottom of the page autosaves in the browser as you type.
 
+## How Much Each Tab Loads
+
+Each source tab shows everything its feed returned, with no display cap.
+
+| Tab | Loaded per view |
+| --- | --- |
+| Code | Every repository on the GitHub Trending page (GitHub lists about 25). The status line shows how many were found. |
+| Models, Datasets | Up to 100 from Hugging Face. Model variants are grouped under their base model, so Models shows fewer cards than rows fetched. |
+| Papers: Community | Up to 300 Daily Papers, fetched as three pages of 100. |
+| Papers: Raw arXiv | The latest 100 matching papers. The status line shows the total number of matches arXiv reports. |
+| Posts | Paged Hacker News and Reddit results, as described above. |
+
+Daily snapshots keep the first 24 cards of Code, Models, Datasets, and Papers so archives stay small. If the browser's storage fills up, Scout Lab drops feed caches first and never fails a load because a cache could not be saved.
+
 ## Freshness And Caching
 
 Opening a new tab starts cache-aware requests for Today, Code, Models, Datasets, Papers, and Posts. This warms all remote workbenches in the background, not only the visible tab.

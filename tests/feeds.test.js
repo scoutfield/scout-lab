@@ -337,3 +337,67 @@ describe('feed integration', () => {
     expect(result.shortfalls).toEqual({ code: 1, models: 1 });
   });
 });
+
+describe('source feed coverage', () => {
+  const json = (body) => response(body);
+  const notFound = () => new Response('', { status: 404 });
+
+  it('records how many Trending rows the page held and how many became cards', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(trendingHtml, { type: 'text/html' })));
+    const result = await fetchSection('code', createDefaultFilters().code, { force: true });
+    expect(result.status).toMatchObject({ sourceRows: 2, parsedRows: 2 });
+  });
+
+  it('keeps every model family returned rather than truncating at 24', async () => {
+    const models = Array.from({ length: 60 }, (_, index) => ({
+      id: `org/model-${index}`, downloads: 100 - index, likes: 1, trendingScore: 100 - index, tags: [],
+    }));
+    vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve(`${url}`.includes('/api/models') ? json(models) : notFound())));
+    const result = await fetchSection('models', createDefaultFilters().models, { force: true });
+    expect(result.cards).toHaveLength(60);
+  });
+
+  it('keeps every dataset returned rather than truncating at 24', async () => {
+    const datasets = Array.from({ length: 70 }, (_, index) => ({
+      id: `org/data-${index}`, downloads: 10, likes: 1, trendingScore: 70 - index, tags: [],
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(datasets)));
+    const result = await fetchSection('datasets', createDefaultFilters().datasets, { force: true });
+    expect(result.cards).toHaveLength(70);
+  });
+
+  it('pages Daily Papers until a short page and removes duplicates across pages', async () => {
+    const entry = (index) => ({ paper: { id: `2610.${`${index}`.padStart(5, '0')}`, title: `Paper ${index}`, summary: 's', upvotes: index, authors: [] } });
+    const pages = [
+      Array.from({ length: 100 }, (_, index) => entry(index)),
+      [entry(0), ...Array.from({ length: 99 }, (_, index) => entry(100 + index))],
+      Array.from({ length: 30 }, (_, index) => entry(200 + index)),
+    ];
+    const fetchMock = vi.fn((url) => Promise.resolve(json(pages[Number(new URL(url).searchParams.get('p') || 0)])));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await fetchSection('papers', createDefaultFilters().papers, { force: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(result.cards).toHaveLength(229);
+  });
+
+  it('stops paging Daily Papers when the first page is not full', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json([{ paper: { id: '2610.00001', title: 'Only', summary: 's', upvotes: 1, authors: [] } }]));
+    vi.stubGlobal('fetch', fetchMock);
+    const result = await fetchSection('papers', createDefaultFilters().papers, { force: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.cards).toHaveLength(1);
+  });
+
+  it('says how many of the matching arXiv papers are shown', async () => {
+    const entries = Array.from({ length: 3 }, (_, index) => `<entry><id>http://arxiv.org/abs/2610.0000${index}v1</id><title>P${index}</title><summary>s</summary><published>2026-10-01T00:00:00Z</published><author><name>A</name></author><category term="cs.AI"/></entry>`).join('');
+    const xml = `<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/"><opensearch:totalResults>2222</opensearch:totalResults>${entries}</feed>`;
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(xml, { type: 'application/atom+xml' })));
+
+    const result = await fetchSection('papers', { ...createDefaultFilters().papers, source: 'arxiv', sort: 'newest' }, { force: true });
+
+    expect(result.cards).toHaveLength(3);
+    expect(result.status.label).toBe('Raw arXiv · latest 3 of 2,222 matches');
+  });
+});

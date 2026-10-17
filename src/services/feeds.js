@@ -4,6 +4,7 @@ import { DEFAULT_TODAY_MIX, normalizeTodayMix, normalizeRedditCommunities } from
 import {
   buildArxivRequest,
   buildCommunityPapersUrl,
+  FEED_PAGE_SIZE,
   buildDatasetsRequest,
   buildGithubRequest,
   buildPostsUrl,
@@ -17,6 +18,8 @@ import {
   stableSerialize,
 } from './query.js';
 import {
+  arxivTotalResults,
+  countGithubTrendingRows,
   normalizeCommunityPaper,
   normalizeDataset,
   normalizeModel,
@@ -105,6 +108,7 @@ const fetchCode = async (filters) => {
   const request = buildGithubRequest(filters);
   const html = await fetchText(resolveGithubRequestUrl(request), { headers: { Accept: 'text/html' } });
   const parsed = ensureTrendingCards(parseGithubTrending(html, filters.time));
+  const sourceRows = countGithubTrendingRows(html);
   const cards = await enrichCardDescriptions(parsed);
   return {
     cards,
@@ -115,6 +119,9 @@ const fetchCode = async (filters) => {
       sourceRevision: GITHUB_TRENDING_SOURCE_REVISION,
       sourceUrl: request.url,
       updatedAt: new Date().toISOString(),
+      // Rows on the Trending page versus repositories parsed from them, so a shortfall is visible.
+      sourceRows,
+      parsedRows: parsed.length,
     },
   };
 };
@@ -124,7 +131,7 @@ const fetchModels = async (filters) => {
   if (!Array.isArray(data)) throw new Error('Hugging Face models returned an unexpected response');
   const normalized = data.map((item) => normalizeModel(item, filters.rank));
   const grouped = groupModelCards(filterModelsByUpdated(normalized, filters.updated)
-    .filter((card) => matchesTopic(card, filters.topic))).slice(0, 24);
+    .filter((card) => matchesTopic(card, filters.topic))).slice(0, FEED_PAGE_SIZE);
   const cards = await enrichCardDescriptions(grouped);
   return {
     cards,
@@ -140,7 +147,7 @@ const fetchDatasets = async (filters) => {
     : await fetchJson(requestUrl);
   if (!Array.isArray(data)) throw new Error('Hugging Face datasets returned an unexpected response');
   const cards = data.map((item) => normalizeDataset(item, filters.rank))
-    .filter((card) => matchesTopic(card, filters.topic)).slice(0, 24);
+    .filter((card) => matchesTopic(card, filters.topic)).slice(0, FEED_PAGE_SIZE);
   return { cards, status: { label: 'Hugging Face datasets', stale: false } };
 };
 
@@ -196,25 +203,42 @@ const fetchPosts = async (filters, options) => {
   } };
 };
 
+const COMMUNITY_PAPERS_MAX_PAGES = 3;
+
+const fetchCommunityPapers = async (filters) => {
+  const entries = [];
+  for (let page = 0; page < COMMUNITY_PAPERS_MAX_PAGES; page += 1) {
+    const data = await fetchJson(buildCommunityPapersUrl(filters, new Date(), page));
+    if (!Array.isArray(data)) throw new Error('Hugging Face Daily Papers returned an unexpected response');
+    entries.push(...data);
+    if (data.length < FEED_PAGE_SIZE) break;
+  }
+  const unique = [...new Map(entries.map((entry) => [(entry.paper || entry).id, entry])).values()];
+  const cards = unique.map(normalizeCommunityPaper)
+    .filter((card) => matchesTopic(card, filters.topic))
+    .sort((left, right) => filters.sort === 'recent'
+      ? new Date(right.details.featuredAt).getTime() - new Date(left.details.featuredAt).getTime()
+      : right.details.upvotes - left.details.upvotes);
+  return { cards, status: { label: 'Hugging Face Daily Papers', stale: false } };
+};
+
 const fetchPapers = async (filters) => {
   if (filters.source === 'arxiv') {
     const request = buildArxivRequest(filters);
     const xml = await fetchText(resolveArxivRequestUrl(request), { headers: { Accept: 'application/atom+xml' } });
+    const cards = parseArxivFeed(xml);
+    const total = arxivTotalResults(xml);
     return {
-      cards: parseArxivFeed(xml),
-      status: { label: 'Raw arXiv', stale: false },
+      cards,
+      status: {
+        label: total > cards.length
+          ? `Raw arXiv · latest ${cards.length} of ${total.toLocaleString('en-US')} matches`
+          : 'Raw arXiv',
+        stale: false,
+      },
     };
   }
-
-  const data = await fetchJson(buildCommunityPapersUrl(filters));
-  if (!Array.isArray(data)) throw new Error('Hugging Face Daily Papers returned an unexpected response');
-  const cards = data.map(normalizeCommunityPaper)
-    .filter((card) => matchesTopic(card, filters.topic))
-    .sort((left, right) => filters.sort === 'recent'
-      ? new Date(right.details.featuredAt).getTime() - new Date(left.details.featuredAt).getTime()
-      : right.details.upvotes - left.details.upvotes)
-    .slice(0, 24);
-  return { cards, status: { label: 'Hugging Face Daily Papers', stale: false } };
+  return fetchCommunityPapers(filters);
 };
 
 const liveFetcher = (section, filters, options) => {

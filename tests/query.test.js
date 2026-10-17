@@ -202,7 +202,7 @@ describe('workbench query builders', () => {
       'benchmark:official',
     ]);
     expect(url.searchParams.get('gated')).toBe('false');
-    expect(url.searchParams.get('limit')).toBe('48');
+    expect(url.searchParams.get('limit')).toBe('100');
   });
 
   it('maps every Hugging Face dataset sort to its source-backed request', () => {
@@ -347,5 +347,23 @@ describe('Hacker News posts', () => {
     expect(validateSourceUrl('https://news.ycombinator.com/item?id=1', 'hackernews')).toBe('https://news.ycombinator.com/item?id=1');
     expect(validateSourceUrl('https://example.com/', 'hackernews')).toBe('');
     expect(validateSourceUrl('https://example.com/', 'constructor')).toBe('');
+  });
+});
+
+describe('feed coverage', () => {
+  it('asks Hugging Face and arXiv for full pages rather than 24 or 48 rows', () => {
+    expect(new URL(buildModelsUrl(createDefaultFilters().models)).searchParams.get('limit')).toBe('100');
+    expect(new URL(buildArxivUrl({ ...createDefaultFilters().papers, source: 'arxiv', sort: 'newest' }))
+      .searchParams.get('max_results')).toBe('100');
+  });
+
+  it('pages Daily Papers with p only after the first page', () => {
+    const filters = createDefaultFilters().papers;
+    const first = new URL(buildCommunityPapersUrl(filters, new Date('2026-10-04T00:00:00Z')));
+    expect(first.searchParams.get('limit')).toBe('100');
+    expect(first.searchParams.has('p')).toBe(false);
+    const third = new URL(buildCommunityPapersUrl(filters, new Date('2026-10-04T00:00:00Z'), 2));
+    expect(third.searchParams.get('p')).toBe('2');
+    expect(third.searchParams.get('week')).toBe(first.searchParams.get('week'));
   });
 });

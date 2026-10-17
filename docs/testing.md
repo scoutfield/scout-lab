@@ -67,6 +67,7 @@ Every behavior change must update or add the nearest automated test. Changes to 
 - `tests/posts.test.js`: paginated candidate coverage, deduplication, age-adjusted ranking, thresholds, bounded sampling, outages, 15-minute cache expiry, and Today source-cache lifetime.
 - `tests/settings.test.js` and `tests/backup.test.js`: legacy rank migration, saved Posts filters, safe full-queue migration, explicit zero allocation, and durable backup round-trips.
 - `tests/e2e/posts-workbench.spec.js`: unified controls, editable defaults, persistence/restores, Today hidden replacements and disabled lane, Library notes/article links, mobile overflow, and outage rendering.
+- `tests/e2e/feed-coverage.spec.js`, `tests/feeds.test.js`, and `tests/storage.test.js`: all 25 Trending repositories render, Models and Datasets are not cut at 24, Daily Papers paging and de-duplication, the arXiv total in the status line, and cache or snapshot writes surviving a full browser quota.
 - `tests/e2e/startup-cache.spec.js`: eight-card default Today composition, shared Posts fetches, and cache reuse across tabs.
 
 Browser checks require an unused port. The default Playwright configuration can reuse another application's server on 4173; use a temporary config with a dedicated port when that port is occupied.
