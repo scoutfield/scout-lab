@@ -31,7 +31,7 @@ Scout Lab is intentionally not a general search page, bookmark manager, social f
 
 ### Today
 
-Today composes a concise briefing from the current source filters. The default mix is two repositories, one model, one dataset, two papers, and two Posts. You can configure 1-40 cards in Settings, with up to eight cards from each source.
+Today composes a concise briefing from the current source filters. The default is 20 cards: five repositories, four models, three datasets, four papers, and four Posts. You can configure 1-40 cards in Settings, with up to eight cards from each source.
 
 Today has Search and Refresh but no topic or filter bar. Detailed exploration belongs in the source workbenches.
 

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { composeTodayCards, DESCRIPTION_REVISION, fetchSection } from '../src/services/feeds.js';
+import { DEFAULT_TODAY_MIX } from '../src/settings.js';
 import { setCache } from '../src/services/storage.js';
 import { createDefaultFilters } from '../src/workbenches.js';
 
@@ -321,6 +322,21 @@ describe('feed integration', () => {
       'paper:community-two',
       'paper:arxiv-two',
     ]);
+    expect(result.shortfalls).toEqual({});
+  });
+
+  it('fills exactly 20 cards from the default mix and splits Papers between community and arXiv', () => {
+    const lane = (name) => Array.from({ length: 8 }, (_, index) => ({ id: `${name}:${index}` }));
+    const result = composeTodayCards({
+      code: lane('code'), models: lane('model'), datasets: lane('dataset'),
+      community: lane('community'), arxiv: lane('arxiv'), posts: lane('post'),
+    }, DEFAULT_TODAY_MIX, {});
+
+    const count = (prefix) => result.cards.filter(({ id }) => id.startsWith(`${prefix}:`)).length;
+    expect(result.cards).toHaveLength(20);
+    expect([count('code'), count('model'), count('dataset'), count('community') + count('arxiv'), count('post')])
+      .toEqual([5, 4, 3, 4, 4]);
+    expect([count('community'), count('arxiv')]).toEqual([2, 2]);
     expect(result.shortfalls).toEqual({});
   });
 

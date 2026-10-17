@@ -22,13 +22,20 @@ const DENSITIES = new Set(['comfortable', 'compact']);
 const STARTUP_SECTIONS = new Set(['last-used', ...SECTION_ORDER]);
 const LINK_BEHAVIORS = new Set(['foreground', 'background']);
 
+// A 20-card briefing: Code leads because GitHub Trending turns over fastest; Models, Papers (split
+// between community and arXiv), and Posts share the middle; Datasets change least, so get the fewest.
 export const DEFAULT_TODAY_MIX = Object.freeze({
-  code: 2,
-  models: 1,
-  datasets: 1,
-  papers: 2,
-  posts: 2,
+  code: 5,
+  models: 4,
+  datasets: 3,
+  papers: 4,
+  posts: 4,
 });
+
+// The mix shipped before the 20-card default. Anyone still on it never customized Today, so they
+// move to the new default instead of staying on a stale one.
+const PREVIOUS_DEFAULT_TODAY_MIX = Object.freeze({ code: 2, models: 1, datasets: 1, papers: 2, posts: 2 });
+const isPreviousDefaultMix = (mix) => TODAY_LANES.every((lane) => mix[lane] === PREVIOUS_DEFAULT_TODAY_MIX[lane]);
 
 export const DEFAULT_PREFERENCES = Object.freeze({
   theme: 'system',
@@ -65,8 +72,9 @@ export const normalizeTodayMix = (value) => {
   if (value && !Object.hasOwn(value, 'posts')) {
     const existingTotal = TODAY_LANES.filter((lane) => lane !== 'posts')
       .reduce((total, lane) => total + candidate[lane], 0);
-    candidate.posts = Math.max(0, Math.min(DEFAULT_TODAY_MIX.posts, 40 - existingTotal));
+    candidate.posts = Math.max(0, Math.min(PREVIOUS_DEFAULT_TODAY_MIX.posts, 40 - existingTotal));
   }
+  if (isPreviousDefaultMix(candidate)) return { ...DEFAULT_TODAY_MIX };
   return isValidTodayMix(candidate) ? candidate : { ...DEFAULT_TODAY_MIX };
 };
 

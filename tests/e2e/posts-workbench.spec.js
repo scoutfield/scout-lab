@@ -141,7 +141,7 @@ test('feed defaults, restore-all, and preference reset keep Posts consistent wit
   await page.locator('[data-command="request-reset-preferences"]').click();
   await page.locator('[data-command="confirm-reset-preferences"]').click();
   await expect(page.getByLabel('Default Posts minimum points')).toHaveValue('0');
-  await expect(page.locator('[data-today-lane="posts"] output')).toHaveText('2');
+  await expect(page.locator('[data-today-lane="posts"] output')).toHaveText('4');
   await page.locator('.drawer-close').click();
   await expect(page.locator('.grid .card')).toHaveCount(4);
   await expect(page.locator('.card[data-id="hn:1"]').getByRole('button', { name: 'Favorite', exact: true })).toHaveClass(/active/);

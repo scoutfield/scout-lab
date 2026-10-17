@@ -16,7 +16,7 @@ Scout Lab turns every new tab into a calm AI discovery workspace. Scan current o
 
 Features:
 
-- A configurable Today queue with up to 40 cards across all sources
+- A configurable Today queue, 20 cards by default and up to 40, across all sources
 - GitHub Trending repositories with time, spoken-language, programming-language, and topic filters
 - Hugging Face model and dataset discovery with source-specific filters and sorting
 - Hugging Face Daily Papers and raw arXiv research

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createDefaultPreferences,
   DEFAULT_PREFERENCES,
+  DEFAULT_TODAY_MIX,
   DEFAULT_REDDIT_COMMUNITIES,
   parseRedditCommunities,
   isValidTodayMix,
@@ -83,7 +85,6 @@ describe('settings schema', () => {
   });
 
   it('adds Posts to legacy Today queues only within their remaining capacity', () => {
-    expect(normalizePreferences().todayMix).toEqual({ code: 2, models: 1, datasets: 1, papers: 2, posts: 2 });
     expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 3 } }).todayMix)
       .toEqual({ code: 4, models: 4, datasets: 0, papers: 3, posts: 2 });
     expect(normalizePreferences({ todayMix: { code: 4, models: 4, datasets: 0, papers: 4 } }).todayMix.posts).toBe(2);
@@ -105,4 +106,29 @@ it('normalizes custom subreddits, rejects malformed input, and restores blank de
   expect(() => parseRedditCommunities('https://reddit.com/r/OpenAI')).toThrow();
   expect(() => parseRedditCommunities(Array.from({length: 21}, (_, i) => `community${i}`))).toThrow('20');
   expect(normalizePreferences({ redditCommunities: ['OpenAI'] }).redditCommunities).toEqual(['OpenAI']);
+});
+
+describe('Today queue default', () => {
+  it('is a valid 20-card mix with a deliberate allocation per source', () => {
+    const mix = normalizePreferences().todayMix;
+    expect(mix).toEqual({ code: 5, models: 4, datasets: 3, papers: 4, posts: 4 });
+    expect(Object.values(mix).reduce((sum, count) => sum + count, 0)).toBe(20);
+    expect(isValidTodayMix(mix)).toBe(true);
+    expect(Object.values(mix).every((count) => count >= 1 && count <= 8)).toBe(true);
+    expect(createDefaultPreferences().todayMix).toEqual(mix);
+  });
+
+  it('moves installs still on the previous 8-card default to the new default', () => {
+    const previous = { code: 2, models: 1, datasets: 1, papers: 2, posts: 2 };
+    expect(normalizePreferences({ todayMix: previous }).todayMix).toEqual(DEFAULT_TODAY_MIX);
+    // The pre-Posts four-lane default reaches the same place.
+    expect(normalizePreferences({ todayMix: { code: 2, models: 1, datasets: 1, papers: 2 } }).todayMix)
+      .toEqual(DEFAULT_TODAY_MIX);
+  });
+
+  it('keeps any customized mix, including a deliberate zero lane', () => {
+    const custom = { code: 3, models: 1, datasets: 0, papers: 2, posts: 2 };
+    expect(normalizePreferences({ todayMix: custom }).todayMix).toEqual(custom);
+    expect(normalizePreferences({ todayMix: { ...DEFAULT_TODAY_MIX, posts: 0 } }).todayMix.posts).toBe(0);
+  });
 });

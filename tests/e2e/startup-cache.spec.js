@@ -60,6 +60,7 @@ test('cold startup warms every remote workbench and later new tabs reuse the cac
 
   await page.goto('/newtab.html');
   await expect(page.getByRole('heading', { name: "Today's queue" })).toBeVisible();
+  // The default Today mix asks for 20 cards; these mocked sources only supply 8 in total.
   await expect(page.locator('.grid .card')).toHaveCount(8);
   await expect.poll(() => requests).toEqual({
     github: 1, models: 1, modelReadmes: 1, datasets: 1, community: 1, arxiv: 1, posts: 2,
